@@ -1,6 +1,7 @@
 import gym
-from gym import error, spaces, utils
-from gym.utils import seeding
+from gym import spaces  # error, spaces, utils
+
+# from gym.utils import seeding
 
 import numpy as np
 from domus_mlsim import (
@@ -9,10 +10,11 @@ from domus_mlsim import (
     DV1_XT_COLUMNS,
     HVAC_XT_COLUMNS,
     HvacUt,
-    HvacXt,
     KELVIN,
     estimate_cabin_temperature_dv1,
     kw_to_array,
+    hcm_reduced,
+    load_hcm_model,
     load_dv1,
     load_hvac,
     make_dv1_sim,
@@ -22,6 +24,27 @@ from domus_mlsim import (
     update_dv1_inputs,
     update_hvac_inputs,
 )
+
+COMFORT_WEIGHT = 0.523
+ENERGY_WEIGHT = -0.477
+
+BLOWER_MULT = 17
+BLOWER_ADD = 94
+
+COMPRESSOR_MAX = 3000
+HV_HEATER_MAX = 6000
+FAN_MAX = 400
+BLOWER_MIN = 5 * BLOWER_MULT + BLOWER_ADD
+BLOWER_MAX = 18 * BLOWER_MULT + BLOWER_ADD
+
+ENERGY_MIN = BLOWER_MIN
+ENERGY_MAX = BLOWER_MAX + COMPRESSOR_MAX + HV_HEATER_MAX + FAN_MAX
+
+DEWPOINT_LOWER = 2
+DEWPOINT_UPPER = 5
+
+# exponential distribution for 23 minute mean episode length
+DONE_PROB = 1 - np.exp(-1 / (23 * 60))
 
 # 1. import domus_mlsim harness
 # 2. initially - set b_x / h_x to a hot starting environment
@@ -51,17 +74,32 @@ class DomusEnv(gym.Env):
 
         Actions:
 
-          recirc to 0, 0.5, or 1
-          defrost to 0, or 1
           blower_level 5, 10, or 18
-          window_heating 0 or 1
           compressor_power 0 -> 3000
           hv_heater 0 -> 6000
           fan_power 0 -> 200??
+          recirc to 0, 0.5, or 1
+          window_heating 0 or 1
 
         Reward
 
-          TODO Based on fitness function
+        + The reward function is provided by the AF as
+
+         :math: f_n(t) = 0.523 c(t) - 0.477e_n(t) + 2 ( s(t) - 1 ),
+
+        where $t$ is time, $f_n$ is the normalised fitness function,
+        $c$ is the comfort, $e_n$ is the normalised energy use, $s$ is
+        the safety index.
+
+        + The energy $e(t)$ is the sum of component energies from:
+        1. HVAC including:
+         a. PTC heater
+         b. AC compressor
+         c. AC fan
+         d. blower
+        2. radiant panels (1--4), if available
+        3. heated seats, if available
+        4. windshield heating, if available
 
         Starting state:
 
@@ -94,26 +132,27 @@ class DomusEnv(gym.Env):
 
         self.observation_space = spaces.Box(obs_min, obs_max, dtype=np.float32)
         self.action_grid = [
-            # recirc
-            np.linspace(0, 1, 3),
-            # defrost
-            np.linspace(0, 1, 2),
             # blower_level 5, 10, or 18
-            np.array([5, 10, 18]) * 17 + 94,
-            # window_heating 0 or 1
-            np.linspace(0, 1, 2),
+            np.array([5, 10, 18]) * BLOWER_MULT + BLOWER_ADD,
             # compressor_power 0 -> 3000 (0 or 3000)
             np.linspace(0, 3000, 2),
             # hv_heater 0 -> 6000 (0 or 3000 or 6000)
             np.linspace(0, 6000, 3),
             # fan_power 0 -> 400
             np.linspace(0, 400, 3),
+            # recirc
+            np.linspace(0, 1, 3),
+            # window_heating 0 or 1
+            np.linspace(0, 1, 2),
         ]
         self.action_space = spaces.MultiDiscrete([len(x) for x in self.action_grid])
 
         self.dv1_scaler_and_model = load_dv1()
         self.hvac_scaler_and_model = load_hvac()
         self.setpoint = 22 + KELVIN
+        _, _, ldamdl, scale = load_hcm_model()
+        self.hcm_model = (ldamdl, scale)
+        self.configured_passengers = [0, 1]
 
     def _convert_state(self):
         """given the current state, create a vector that can be used as input to the controller"""
@@ -142,6 +181,136 @@ class DomusEnv(gym.Env):
 
         return c_x
 
+    def _body_state(self, b_x, n):
+        """return the body state matrix for passenger n where 0 is the driver, etc"""
+        if n == 0:
+            v = b_x[
+                [
+                    DV1Xt.t_drvr1,
+                    DV1Xt.m_drvr1,
+                    DV1Xt.v_drvr1,
+                    DV1Xt.t_drvr2,
+                    DV1Xt.m_drvr2,
+                    DV1Xt.v_drvr2,
+                    DV1Xt.t_drvr3,
+                    DV1Xt.m_drvr3,
+                    DV1Xt.v_drvr3,
+                ]
+            ]
+        elif n == 1:
+            v = b_x[
+                [
+                    DV1Xt.t_psgr1,
+                    DV1Xt.m_psgr1,
+                    DV1Xt.v_psgr1,
+                    DV1Xt.t_psgr2,
+                    DV1Xt.m_psgr2,
+                    DV1Xt.v_psgr2,
+                    DV1Xt.t_psgr3,
+                    DV1Xt.m_psgr3,
+                    DV1Xt.v_psgr3,
+                ]
+            ]
+        elif n == 2:
+            v = b_x[
+                [
+                    DV1Xt.t_psgr21,
+                    DV1Xt.m_psgr21,
+                    DV1Xt.v_psgr21,
+                    DV1Xt.t_psgr22,
+                    DV1Xt.m_psgr22,
+                    DV1Xt.v_psgr22,
+                    DV1Xt.t_psgr23,
+                    DV1Xt.m_psgr23,
+                    DV1Xt.v_psgr23,
+                ]
+            ]
+        elif n == 3:
+            v = b_x[
+                [
+                    DV1Xt.t_psgr31,
+                    DV1Xt.m_psgr31,
+                    DV1Xt.v_psgr31,
+                    DV1Xt.t_psgr32,
+                    DV1Xt.m_psgr32,
+                    DV1Xt.v_psgr32,
+                    DV1Xt.t_psgr33,
+                    DV1Xt.m_psgr33,
+                    DV1Xt.v_psgr33,
+                ]
+            ]
+        # hcm uses celsius not kelvin
+        v = v - np.array([KELVIN, KELVIN, 0, KELVIN, KELVIN, 0, KELVIN, KELVIN, 0])
+        return v.reshape((3, 3))
+
+    def _comfort(self, b_x, h_u):
+        # temporarily just assess driver and front passenger comfort
+
+        # assess driver comfort
+        hcm = [
+            hcm_reduced(
+                model=self.hcm_model,
+                pre_out=h_u[HvacUt.ambient] - KELVIN,
+                body_state=self._body_state(b_x, i),
+                rh=b_x[DV1Xt.rhc] * 100,
+            )
+            for i in self.configured_passengers
+        ]
+        return np.mean(hcm)
+
+    def _normalise_energy(self, energy):
+        """normalise energy value to be between 0 and 1"""
+        return (energy - ENERGY_MIN) / (ENERGY_MAX - ENERGY_MIN)
+
+    def _energy(self, h_u):
+        energy = np.sum(
+            h_u[
+                [HvacUt.blw_power, HvacUt.cmp_power, HvacUt.fan_power, HvacUt.hv_heater]
+            ]
+        )
+        # TODO window heating, radiant panels, heated seats
+
+        return self._normalise_energy(energy)
+
+    def _safety(self, b_x, cab_t):
+        """safety is defined based on window fogging. This is estimated from
+        the windshield temperature and relative humidity. The relative
+        humidity yields a dew-point temperature
+
+        """
+        cabin_temperature = cab_t
+        cabin_humidity = b_x[DV1Xt.rhc]
+        windshield_temperature = b_x[DV1Xt.ws]
+        # use simple dewpoint calculation given on wikipedia
+        # https://en.wikipedia.org/wiki/Dew_point#Simple_approximation
+        dewpoint_temperature = cabin_temperature - (1 - cabin_humidity) * 20
+        delta_t = windshield_temperature - dewpoint_temperature
+        if delta_t < DEWPOINT_LOWER:
+            return 0
+        elif delta_t > DEWPOINT_UPPER:
+            return 1
+        else:
+            return (delta_t - DEWPOINT_LOWER) / (DEWPOINT_UPPER - DEWPOINT_LOWER)
+
+    def _reward(self, b_x, h_u, cab_t):
+        """fitness function based on state
+
+        according to the domus d1.2 assessment framework, the fitness
+        function is based on the energy, comfort and safety
+
+        :math:f_n(t) = 0.523 c(t) - 0.477e_n(t) + 2 ( s(t) - 1 ),
+
+        """
+
+        return (
+            COMFORT_WEIGHT * self._comfort(b_x, h_u)
+            + ENERGY_WEIGHT * self._energy(h_u)
+            + 2 * (self._safety(b_x, cab_t) - 1)
+        )
+
+    def _isdone(self):
+        return np.random.uniform(size=1) < DONE_PROB
+
     def step(self, action):
 
         c_x = self._convert_action(action)
@@ -169,7 +338,12 @@ class DomusEnv(gym.Env):
         update_dv1_inputs(b_u, self.h_x, c_x)
         _, self.b_x = self.dv1_sim.step(b_u)
 
-        return self._convert_state()
+        return (
+            self._convert_state(),
+            self._reward(self.b_x, h_u, cab_t),
+            self._isdone(),
+            {},
+        )
 
     def reset(self):
 

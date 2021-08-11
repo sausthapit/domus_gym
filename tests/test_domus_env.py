@@ -1,4 +1,20 @@
+import numpy as np
 from domus_gym.envs.domus_env import DomusEnv
+from domus_mlsim import hcm_reduced
+from pytest import approx
+
+from domus_mlsim import (
+    SimpleHvac,
+    estimate_cabin_temperature_dv1,
+    KELVIN,
+    DV1_XT_COLUMNS,
+    HVAC_UT_COLUMNS,
+)
+
+
+def find_nearest_idx(array, value):
+    array = np.asarray(array)
+    return (np.abs(array - value)).argmin()
 
 
 def test_domus_env():
@@ -14,6 +30,209 @@ def test_domus_env():
     assert s is not None
     assert env.observation_space.contains(s)
 
-    s1 = env.step(a)
+    s1, rew, done, kw = env.step(a)
     assert s1 is not None
     assert env.observation_space.contains(s1)
+
+    ctrl = SimpleHvac()
+    s = env.reset()
+    for i in range(100):
+        a = ctrl.step(s)
+
+        #        print(f"a={a}")
+        # convert an continuous control value into a discrete one
+        act = [find_nearest_idx(ag, value) for ag, value in zip(env.action_grid, a)]
+
+        assert env.action_space.contains(act)
+        s, rew, done, kw = env.step(act)
+        if not done:
+            assert env.observation_space.contains(s)
+    #       print(f"s={s}")
+    assert 0 < s[0] < 1
+    # temperature should have decreased
+    assert s[1] < 305
+
+
+def partial_kw_to_array(columns, **kwargs):
+    A = np.zeros(len(columns))
+    for k, v in kwargs.items():
+        A[columns.index(k)] = v
+    return A
+
+
+def make_b_x(air_temp, rh, ws):
+    return partial_kw_to_array(
+        DV1_XT_COLUMNS,
+        t_drvr1=air_temp,
+        t_drvr2=air_temp,
+        t_drvr3=air_temp,
+        t_psgr1=air_temp,
+        t_psgr2=air_temp,
+        t_psgr3=air_temp,
+        m_drvr1=air_temp,
+        m_drvr2=air_temp,
+        m_drvr3=air_temp,
+        m_psgr1=air_temp,
+        m_psgr2=air_temp,
+        m_psgr3=air_temp,
+        rhc=rh,
+        ws=ws,
+    )
+
+
+def test_hcm():
+    env = DomusEnv()
+    t = KELVIN + 22
+    body_state = np.array(
+        [
+            [
+                t - KELVIN,
+                t - KELVIN,
+                0,
+            ],
+            [
+                t - KELVIN,
+                t - KELVIN,
+                0,
+            ],
+            [
+                t - KELVIN,
+                t - KELVIN,
+                0,
+            ],
+        ]
+    )
+
+    assert (
+        hcm_reduced(
+            model=env.hcm_model,
+            pre_out=22,
+            body_state=body_state,
+            rh=50,
+        )
+        == 1
+    )
+
+
+def test_comfort():
+    env = DomusEnv()
+
+    _ = env.reset()
+    h_u = partial_kw_to_array(
+        HVAC_UT_COLUMNS,
+        ambient=KELVIN + 37,
+    )
+    assert env._comfort(env.b_x, h_u) == 0
+
+    # should be comfortable
+    h_u = partial_kw_to_array(
+        HVAC_UT_COLUMNS,
+        ambient=KELVIN + 22,
+    )
+    b_x = make_b_x(KELVIN + 22, 0.5, KELVIN + 22)
+
+    assert env._comfort(b_x, h_u) == 1
+
+    # winter temperature range
+    ambient = 10
+    for temp in range(12, 37):
+        h_u = partial_kw_to_array(
+            HVAC_UT_COLUMNS,
+            ambient=KELVIN + ambient,
+        )
+        b_x = make_b_x(KELVIN + temp, 0.5, KELVIN + ambient)
+
+        assert env._comfort(b_x, h_u) == (18 <= temp <= 27.5)
+
+    # summer temperature range
+    ambient = 30
+    for temp in range(12, 37):
+        h_u = partial_kw_to_array(
+            HVAC_UT_COLUMNS,
+            ambient=KELVIN + ambient,
+        )
+        b_x = make_b_x(KELVIN + temp, 0.5, KELVIN + ambient)
+
+        assert env._comfort(b_x, h_u) == (20 <= temp <= 30)
+
+
+def test_energy():
+    env = DomusEnv()
+    # max values
+    h_u = partial_kw_to_array(
+        HVAC_UT_COLUMNS,
+        blw_power=17 * 18 + 94,
+        cmp_power=3000,
+        fan_power=400,
+        hv_heater=6000,
+    )
+    assert env._energy(h_u) == approx(1)
+    # zeros
+    h_u = partial_kw_to_array(
+        HVAC_UT_COLUMNS,
+        blw_power=17 * 5 + 94,
+    )
+    assert env._energy(h_u) == approx(0)
+
+
+def test_safety():
+    env = DomusEnv()
+
+    _ = env.reset()
+    cab_t = estimate_cabin_temperature_dv1(env.b_x)
+    assert env._safety(env.b_x, cab_t) == 1
+
+    b_x = make_b_x(KELVIN + 22, 0.9, KELVIN + 2)
+    cab_t = estimate_cabin_temperature_dv1(b_x)
+    assert env._safety(b_x, cab_t) == 0
+
+    # tdp = T - (100 - rh) / 5
+    # tdp = 10 - (100 - 80) / 5 = 10 - 4 = 6
+    b_x = make_b_x(KELVIN + 10, 0.8, KELVIN + 8)
+    cab_t = estimate_cabin_temperature_dv1(b_x)
+    assert cab_t == approx(KELVIN + 10)
+    assert env._safety(b_x, cab_t) == 0
+    b_x = make_b_x(KELVIN + 10, 0.8, KELVIN + 9.5)
+    cab_t = estimate_cabin_temperature_dv1(b_x)
+    assert env._safety(b_x, cab_t) == approx(0.5)
+    b_x = make_b_x(KELVIN + 10, 0.8, KELVIN + 11)
+    cab_t = estimate_cabin_temperature_dv1(b_x)
+    assert env._safety(b_x, cab_t) == approx(1)
+
+
+def test_reward():
+    env = DomusEnv()
+
+    # max energy, safe, comfort
+    h_u = partial_kw_to_array(
+        HVAC_UT_COLUMNS,
+        ambient=KELVIN + 22,
+        blw_power=17 * 18 + 94,
+        cmp_power=3000,
+        fan_power=400,
+        hv_heater=6000,
+    )
+    b_x = make_b_x(KELVIN + 22, 0.5, KELVIN + 22)
+    cab_t = estimate_cabin_temperature_dv1(b_x)
+    assert env._reward(b_x, h_u, cab_t) == approx(0.523 * 1 - 0.477 * 1 + 2 * (1 - 1))
+
+    # max energy, not safe, comfort
+    b_x = make_b_x(KELVIN + 22, 0.9, KELVIN + 2)
+    assert env._reward(b_x, h_u, cab_t) == approx(0.523 * 1 - 0.477 * 1 + 2 * (0 - 1))
+
+    # min energy, safe, comfort
+    h_u = partial_kw_to_array(
+        HVAC_UT_COLUMNS,
+        ambient=KELVIN + 22,
+        blw_power=17 * 5 + 94,
+        cmp_power=0,
+        fan_power=0,
+        hv_heater=0,
+    )
+    b_x = make_b_x(KELVIN + 22, 0.5, KELVIN + 22)
+    assert env._reward(b_x, h_u, cab_t) == approx(0.523 * 1 - 0.477 * 0 + 2 * (1 - 1))
+
+    # min energy, safe, not comfort
+    b_x = make_b_x(KELVIN + 17, 0.5, KELVIN + 22)
+    cab_t = estimate_cabin_temperature_dv1(b_x)
+    assert env._reward(b_x, h_u, cab_t) == approx(0.523 * 0 - 0.477 * 0 + 2 * (1 - 1))
