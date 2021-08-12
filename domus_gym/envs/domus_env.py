@@ -46,7 +46,8 @@ DEWPOINT_LOWER = 2
 DEWPOINT_UPPER = 5
 
 # exponential distribution for 23 minute mean episode length
-DONE_PROB = 1 - np.exp(-1 / (23 * 60))
+MEAN_EPISODE_MINS = 23
+DONE_PROB = 1 - np.exp(-1 / (MEAN_EPISODE_MINS * 60))
 
 # 1. import domus_mlsim harness
 # 2. initially - set b_x / h_x to a hot starting environment
@@ -111,6 +112,7 @@ class DomusEnv(gym.Env):
           length is 23 minutes.
 
         """
+        super().__init__()
         obs_min = np.array(
             [
                 0,
@@ -315,7 +317,7 @@ class DomusEnv(gym.Env):
         )
 
     def _isdone(self):
-        return np.random.uniform(size=1) < DONE_PROB
+        return bool(np.random.uniform() < DONE_PROB)
 
     def step(self, action):
 

@@ -33,6 +33,7 @@ def test_domus_env():
     s1, rew, done, kw = env.step(a)
     assert s1 is not None
     assert env.observation_space.contains(s1)
+    assert isinstance(done, bool)
 
     ctrl = SimpleHvac()
     s = env.reset()
