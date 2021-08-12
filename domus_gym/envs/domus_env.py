@@ -3,7 +3,7 @@ from gym import spaces  # error, spaces, utils
 
 from .minmax import MinMaxTransform
 
-# from gym.utils import seeding
+from gym.utils import seeding
 
 import numpy as np
 from domus_mlsim import (
@@ -161,6 +161,11 @@ class DomusEnv(gym.Env):
         _, _, ldamdl, scale = load_hcm_model()
         self.hcm_model = (ldamdl, scale)
         self.configured_passengers = [0, 1]
+        self.seed()
+
+    def seed(self, seed=None):
+        self.np_random, seed = seeding.np_random(seed)
+        return [seed]
 
     def _convert_state(self):
         """given the current state, create a vector that can be used as input to the controller"""
@@ -317,7 +322,9 @@ class DomusEnv(gym.Env):
         )
 
     def _isdone(self):
-        return bool(np.random.uniform() < DONE_PROB)
+        """by default, the test returns a numpy bool rather than a python
+        bool, which upsets check_env"""
+        return bool(self.np_random.uniform() < DONE_PROB)
 
     def step(self, action):
 

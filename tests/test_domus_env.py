@@ -1,5 +1,6 @@
 import numpy as np
-from domus_gym.envs.domus_env import DomusEnv
+from domus_gym.envs import DomusEnv
+from domus_gym.envs.domus_env import BLOWER_MIN
 from domus_mlsim import hcm_reduced
 from pytest import approx
 
@@ -38,7 +39,7 @@ def test_domus_env():
     ctrl = SimpleHvac()
     s = env.reset()
     for i in range(100):
-        a = ctrl.step(s)
+        a = ctrl.step(env.obs_tr.inverse_transform(s))
 
         #        print(f"a={a}")
         # convert an continuous control value into a discrete one
@@ -48,10 +49,33 @@ def test_domus_env():
         s, rew, done, kw = env.step(act)
         if not done:
             assert env.observation_space.contains(s)
+        else:
+            s = env.reset()
     #       print(f"s={s}")
     assert 0 < s[0] < 1
     # temperature should have decreased
     assert s[1] < 305
+
+
+def get_episode_len(env):
+    s = env.reset()
+    done = False
+    ep_len = 0
+    while not done:
+        a = np.array([BLOWER_MIN, 0, 0, 0, 0, 0])
+        act = [find_nearest_idx(ag, value) for ag, value in zip(env.action_grid, a)]
+        assert env.action_space.contains(act)
+        s, rew, done, kw = env.step(act)
+        ep_len += 1
+    return ep_len
+
+
+def test_seed():
+    env = DomusEnv()
+    env.seed(1)
+    first_ep_len = get_episode_len(env)
+    env.seed(1)
+    assert first_ep_len == get_episode_len(env)
 
 
 def partial_kw_to_array(columns, **kwargs):
