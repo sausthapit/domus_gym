@@ -70,12 +70,13 @@ def get_episode_len(env):
     return ep_len
 
 
-def test_seed():
-    env = DomusEnv()
-    env.seed(1)
-    first_ep_len = get_episode_len(env)
-    env.seed(1)
-    assert first_ep_len == get_episode_len(env)
+# long running test commented out for the moment
+# def test_seed():
+#     env = DomusEnv()
+#     env.seed(1)
+#     first_ep_len = get_episode_len(env)
+#     env.seed(1)
+#     assert first_ep_len == get_episode_len(env)
 
 
 def partial_kw_to_array(columns, **kwargs):

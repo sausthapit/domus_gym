@@ -4,6 +4,7 @@ from gym import spaces  # error, spaces, utils
 from .minmax import MinMaxTransform
 
 from gym.utils import seeding
+from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
 
 import numpy as np
 from domus_mlsim import (
@@ -112,7 +113,7 @@ class DomusEnv(gym.Env):
           length is 23 minutes.
 
         """
-        super().__init__()
+        super(DomusEnv, self).__init__()
         obs_min = np.array(
             [
                 0,
@@ -326,7 +327,7 @@ class DomusEnv(gym.Env):
         bool, which upsets check_env"""
         return bool(self.np_random.uniform() < DONE_PROB)
 
-    def step(self, action):
+    def step(self, action: np.ndarray) -> GymStepReturn:
 
         c_x = self._convert_action(action)
         cab_t = estimate_cabin_temperature_dv1(self.b_x)
@@ -360,7 +361,7 @@ class DomusEnv(gym.Env):
             {},
         )
 
-    def reset(self):
+    def reset(self) -> GymObs:
 
         # create a new state vector for the cabin and hvac
         self.ambient_t = KELVIN + 37

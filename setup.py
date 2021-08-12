@@ -6,5 +6,6 @@ setup(
     install_requires=[
         "gym",
         "domus_mlsim",
+        "stable-baselines3",
     ],  # And any other dependencies domus-gym needs
 )
