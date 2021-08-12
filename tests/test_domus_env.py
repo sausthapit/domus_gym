@@ -1,11 +1,11 @@
 import numpy as np
 from domus_gym.envs import DomusEnv
 from domus_gym.envs.domus_env import BLOWER_MIN
-from domus_mlsim import hcm_reduced
 from pytest import approx
 
 from domus_mlsim import (
     SimpleHvac,
+    hcm_reduced,
     estimate_cabin_temperature_dv1,
     KELVIN,
     DV1_XT_COLUMNS,
