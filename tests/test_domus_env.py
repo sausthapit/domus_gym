@@ -31,10 +31,14 @@ def test_domus_env():
     assert s is not None
     assert env.observation_space.contains(s)
 
-    s1, rew, done, kw = env.step(a)
+    s1, rew, done, info = env.step(a)
     assert s1 is not None
     assert env.observation_space.contains(s1)
     assert isinstance(done, bool)
+    # check that all keywords are included in info
+    assert "comfort" in info
+    assert "energy" in info
+    assert "safety" in info
 
     ctrl = SimpleHvac()
     s = env.reset()
@@ -46,7 +50,7 @@ def test_domus_env():
         act = [find_nearest_idx(ag, value) for ag, value in zip(env.action_grid, a)]
 
         assert env.action_space.contains(act)
-        s, rew, done, kw = env.step(act)
+        s, rew, done, info = env.step(act)
         if not done:
             assert env.observation_space.contains(s)
         else:
@@ -65,7 +69,7 @@ def get_episode_len(env):
         a = np.array([BLOWER_MIN, 0, 0, 0, 0, 0])
         act = [find_nearest_idx(ag, value) for ag, value in zip(env.action_grid, a)]
         assert env.action_space.contains(act)
-        s, rew, done, kw = env.step(act)
+        s, rew, done, info = env.step(act)
         ep_len += 1
     return ep_len
 
@@ -240,11 +244,19 @@ def test_reward():
     )
     b_x = make_b_x(KELVIN + 22, 0.5, KELVIN + 22)
     cab_t = estimate_cabin_temperature_dv1(b_x)
-    assert env._reward(b_x, h_u, cab_t) == approx(0.523 * 1 - 0.477 * 1 + 2 * (1 - 1))
+    r, c, e, s = env._reward(b_x, h_u, cab_t)
+    assert r == approx(0.523 * 1 - 0.477 * 1 + 2 * (1 - 1))
+    assert c == approx(1)
+    assert e == approx(1)
+    assert s == approx(1)
 
     # max energy, not safe, comfort
     b_x = make_b_x(KELVIN + 22, 0.9, KELVIN + 2)
-    assert env._reward(b_x, h_u, cab_t) == approx(0.523 * 1 - 0.477 * 1 + 2 * (0 - 1))
+    r, c, e, s = env._reward(b_x, h_u, cab_t)
+    assert r == approx(0.523 * 1 - 0.477 * 1 + 2 * (0 - 1))
+    assert c == approx(1)
+    assert e == approx(1)
+    assert s == approx(0)
 
     # min energy, safe, comfort
     h_u = partial_kw_to_array(
@@ -256,9 +268,17 @@ def test_reward():
         hv_heater=0,
     )
     b_x = make_b_x(KELVIN + 22, 0.5, KELVIN + 22)
-    assert env._reward(b_x, h_u, cab_t) == approx(0.523 * 1 - 0.477 * 0 + 2 * (1 - 1))
+    r, c, e, s = env._reward(b_x, h_u, cab_t)
+    assert r == approx(0.523 * 1 - 0.477 * 0 + 2 * (1 - 1))
+    assert c == approx(1)
+    assert e == approx(0)
+    assert s == approx(1)
 
     # min energy, safe, not comfort
     b_x = make_b_x(KELVIN + 17, 0.5, KELVIN + 22)
     cab_t = estimate_cabin_temperature_dv1(b_x)
-    assert env._reward(b_x, h_u, cab_t) == approx(0.523 * 0 - 0.477 * 0 + 2 * (1 - 1))
+    r, c, e, s = env._reward(b_x, h_u, cab_t)
+    assert r == approx(0.523 * 0 - 0.477 * 0 + 2 * (1 - 1))
+    assert c == approx(0)
+    assert e == approx(0)
+    assert s == approx(1)

@@ -315,11 +315,14 @@ class DomusEnv(gym.Env):
         :math:f_n(t) = 0.523 c(t) - 0.477e_n(t) + 2 ( s(t) - 1 ),
 
         """
-
+        c = self._comfort(b_x, h_u)
+        e = self._energy(h_u)
+        s = self._safety(b_x, cab_t)
         return (
-            COMFORT_WEIGHT * self._comfort(b_x, h_u)
-            + ENERGY_WEIGHT * self._energy(h_u)
-            + 2 * (self._safety(b_x, cab_t) - 1)
+            COMFORT_WEIGHT * c + ENERGY_WEIGHT * e + 2 * (s - 1),
+            c,
+            e,
+            s,
         )
 
     def _isdone(self):
@@ -354,11 +357,13 @@ class DomusEnv(gym.Env):
         update_dv1_inputs(b_u, self.h_x, c_x)
         _, self.b_x = self.dv1_sim.step(b_u)
 
+        rew, c, e, s = self._reward(self.b_x, h_u, cab_t)
+
         return (
             self._convert_state(),
-            self._reward(self.b_x, h_u, cab_t),
+            rew,
             self._isdone(),
-            {},
+            {"comfort": c, "energy": e, "safety": s},
         )
 
     def reset(self) -> GymObs:
