@@ -1,6 +1,8 @@
 import gym
 from gym import spaces  # error, spaces, utils
 
+from .minmax import MinMaxTransform
+
 # from gym.utils import seeding
 
 import numpy as np
@@ -124,13 +126,17 @@ class DomusEnv(gym.Env):
                 1,
                 KELVIN + 60,
                 KELVIN + 28,
-                KELVIN + 60,
+                KELVIN + 80,
                 KELVIN + 60,
             ],
             dtype=np.float32,
         )
 
-        self.observation_space = spaces.Box(obs_min, obs_max, dtype=np.float32)
+        self.obs_tr = MinMaxTransform(obs_min, obs_max)
+
+        self.observation_space = spaces.Box(
+            high=1, low=0, shape=obs_min.shape, dtype=np.float32
+        )
         self.action_grid = [
             # blower_level 5, 10, or 18
             np.array([5, 10, 18]) * BLOWER_MULT + BLOWER_ADD,
@@ -160,7 +166,7 @@ class DomusEnv(gym.Env):
         c_u[SimpleHvac.Ut.setpoint] = self.setpoint
         cab_t = estimate_cabin_temperature_dv1(self.b_x)
         update_control_inputs_dv1(c_u, self.b_x, self.h_x, cab_t)
-        return c_u
+        return self.obs_tr.transform(c_u)
 
     def _convert_action(self, action):
         """given some action, convert it first into the controller state
