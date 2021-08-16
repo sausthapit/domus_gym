@@ -162,6 +162,7 @@ class DomusEnv(gym.Env):
         _, _, ldamdl, scale = load_hcm_model()
         self.hcm_model = (ldamdl, scale)
         self.configured_passengers = [0, 1]
+        self.last_reward = None
         self.seed()
 
     def seed(self, seed=None):
@@ -318,8 +319,10 @@ class DomusEnv(gym.Env):
         c = self._comfort(b_x, h_u)
         e = self._energy(h_u)
         s = self._safety(b_x, cab_t)
+        r = COMFORT_WEIGHT * c + ENERGY_WEIGHT * e + 2 * (s - 1)
+        self.last_reward = r
         return (
-            COMFORT_WEIGHT * c + ENERGY_WEIGHT * e + 2 * (s - 1),
+            r,
             c,
             e,
             s,

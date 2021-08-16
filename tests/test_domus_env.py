@@ -39,6 +39,7 @@ def test_domus_env():
     assert "comfort" in info
     assert "energy" in info
     assert "safety" in info
+    assert isinstance(rew, float)
 
     ctrl = SimpleHvac()
     s = env.reset()
