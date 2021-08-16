@@ -50,6 +50,11 @@ DEWPOINT_UPPER = 5
 MEAN_EPISODE_MINS = 23
 DONE_PROB = 1 - np.exp(-1 / (MEAN_EPISODE_MINS * 60))
 
+# this value of gamma should match that used for learning and is used for reward shaping
+# as per Ng et al (1999) "Policy invariance under reward transformations ..."
+GAMMA = 0.99
+REWARD_SHAPE_SCALE = 0.1
+
 # 1. import domus_mlsim harness
 # 2. initially - set b_x / h_x to a hot starting environment
 # 3.
@@ -162,7 +167,6 @@ class DomusEnv(gym.Env):
         _, _, ldamdl, scale = load_hcm_model()
         self.hcm_model = (ldamdl, scale)
         self.configured_passengers = [0, 1]
-        self.last_reward = None
         self.seed()
 
     def seed(self, seed=None):
@@ -258,6 +262,16 @@ class DomusEnv(gym.Env):
         v = v - np.array([KELVIN, KELVIN, 0, KELVIN, KELVIN, 0, KELVIN, KELVIN, 0])
         return v.reshape((3, 3))
 
+    def _phi(self, cab_t):
+        # simplified reward function based only on current state
+        return -np.abs(self.setpoint - cab_t)
+
+    def _reward_shaped(self, cab_t, last_cab_t):
+        if last_cab_t is None:
+            return 0
+        else:
+            return GAMMA * self._phi(cab_t) - self._phi(last_cab_t)
+
     def _comfort(self, b_x, h_u):
         # temporarily just assess driver and front passenger comfort
 
@@ -319,8 +333,12 @@ class DomusEnv(gym.Env):
         c = self._comfort(b_x, h_u)
         e = self._energy(h_u)
         s = self._safety(b_x, cab_t)
-        r = COMFORT_WEIGHT * c + ENERGY_WEIGHT * e + 2 * (s - 1)
-        self.last_reward = r
+        r = (
+            COMFORT_WEIGHT * c
+            + ENERGY_WEIGHT * e
+            + 2 * (s - 1)
+            + REWARD_SHAPE_SCALE * self._reward_shaped(cab_t, self.last_cab_t)
+        )
         return (
             r,
             c,
@@ -361,7 +379,7 @@ class DomusEnv(gym.Env):
         _, self.b_x = self.dv1_sim.step(b_u)
 
         rew, c, e, s = self._reward(self.b_x, h_u, cab_t)
-
+        self.last_cab_t = cab_t
         return (
             self._convert_state(),
             rew,
@@ -380,6 +398,7 @@ class DomusEnv(gym.Env):
         self.solar1 = 200
         self.solar2 = 100
         self.car_speed = 50
+        self.last_cab_t = None
 
         self.b_x = kw_to_array(
             DV1_XT_COLUMNS,

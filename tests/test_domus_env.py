@@ -234,6 +234,7 @@ def test_safety():
 def test_reward():
     env = DomusEnv()
 
+    _ = env.reset()
     # max energy, safe, comfort
     h_u = partial_kw_to_array(
         HVAC_UT_COLUMNS,
@@ -269,17 +270,23 @@ def test_reward():
         hv_heater=0,
     )
     b_x = make_b_x(KELVIN + 22, 0.5, KELVIN + 22)
+    env.last_cab_t = KELVIN + 22
     r, c, e, s = env._reward(b_x, h_u, cab_t)
     assert r == approx(0.523 * 1 - 0.477 * 0 + 2 * (1 - 1))
     assert c == approx(1)
     assert e == approx(0)
     assert s == approx(1)
 
+    assert env._phi(18 + KELVIN) == approx(-4)
+    assert env._reward_shaped(22 + KELVIN, 18 + KELVIN) == approx(4)
+
     # min energy, safe, not comfort
+    # also check reward shaping for 18 -> 22
+    env.last_cab_t = KELVIN + 18
     b_x = make_b_x(KELVIN + 17, 0.5, KELVIN + 22)
     cab_t = estimate_cabin_temperature_dv1(b_x)
     r, c, e, s = env._reward(b_x, h_u, cab_t)
-    assert r == approx(0.523 * 0 - 0.477 * 0 + 2 * (1 - 1))
+    assert r == approx(0.523 * 0 - 0.477 * 0 + 2 * (1 - 1) + 0.1 * (0.99 * -5 + 4))
     assert c == approx(0)
     assert e == approx(0)
     assert s == approx(1)
