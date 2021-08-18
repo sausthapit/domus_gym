@@ -1,6 +1,6 @@
 import gym
 from gym import spaces  # error, spaces, utils
-
+from typing import Optional
 from .minmax import MinMaxTransform
 
 from gym.utils import seeding
@@ -14,15 +14,16 @@ from domus_mlsim import (
     HVAC_XT_COLUMNS,
     HvacUt,
     KELVIN,
+    SimpleHvac,
     estimate_cabin_temperature_dv1,
-    kw_to_array,
     hcm_reduced,
-    load_hcm_model,
+    kw_to_array,
     load_dv1,
+    load_hcm_model,
     load_hvac,
+    load_scenarios,
     make_dv1_sim,
     make_hvac_sim,
-    SimpleHvac,
     update_control_inputs_dv1,
     update_dv1_inputs,
     update_hvac_inputs,
@@ -47,8 +48,7 @@ DEWPOINT_LOWER = 2
 DEWPOINT_UPPER = 5
 
 # exponential distribution for 23 minute mean episode length
-MEAN_EPISODE_MINS = 23
-DONE_PROB = 1 - np.exp(-1 / (MEAN_EPISODE_MINS * 60))
+MEAN_EPISODE_LENGTH = 23 * 60
 
 # this value of gamma should match that used for learning and is used for reward shaping
 # as per Ng et al (1999) "Policy invariance under reward transformations ..."
@@ -63,10 +63,25 @@ REWARD_SHAPE_SCALE = 0.1
 class DomusEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self):
+    def __init__(
+        self,
+        use_random_scenario: bool = False,
+        use_scenario: Optional[int] = None,
+        fixed_episode_length: Optional[int] = None,
+    ):
         """Description:
             Simulation of the thermal environment of a Fiat 500e car
             cabin.
+
+        Parameters
+
+          use_random_scenario : bool
+
+            select initial state from a randomly chosen scenario
+
+          use_scenario : int
+
+            select a specific scenario (range 0 - 28) (see domus_mlsim.scenario for more information)
 
         Observation:
 
@@ -119,6 +134,11 @@ class DomusEnv(gym.Env):
 
         """
         super(DomusEnv, self).__init__()
+        self.use_random_scenario = use_random_scenario
+        self.use_scenario = use_scenario
+        assert use_scenario is None or not use_random_scenario
+        self.fixed_episode_length = fixed_episode_length
+        self.scenarios = load_scenarios()
         obs_min = np.array(
             [
                 0,
@@ -166,7 +186,9 @@ class DomusEnv(gym.Env):
         self.setpoint = 22 + KELVIN
         _, _, ldamdl, scale = load_hcm_model()
         self.hcm_model = (ldamdl, scale)
-        self.configured_passengers = [0, 1]
+        # set up work areas
+        self.h_u = np.zeros((len(HvacUt)))
+        self.b_u = np.zeros((len(DV1Ut)))
         self.seed()
 
     def seed(self, seed=None):
@@ -279,6 +301,7 @@ class DomusEnv(gym.Env):
         hcm = [
             hcm_reduced(
                 model=self.hcm_model,
+                pre_clo=self.pre_clo,
                 pre_out=h_u[HvacUt.ambient] - KELVIN,
                 body_state=self._body_state(b_x, i),
                 rh=b_x[DV1Xt.rhc] * 100,
@@ -347,12 +370,12 @@ class DomusEnv(gym.Env):
         )
 
     def _isdone(self):
-        """by default, the test returns a numpy bool rather than a python
-        bool, which upsets check_env"""
-        return bool(self.np_random.uniform() < DONE_PROB)
+        """episode length is either randomly assigned using an exponential
+        distribution or fixed (typically for evaluation purposes)."""
+        return bool(self.episode_clock >= self.episode_length)
 
     def step(self, action: np.ndarray) -> GymStepReturn:
-
+        self.episode_clock += 1
         c_x = self._convert_action(action)
         cab_t = estimate_cabin_temperature_dv1(self.b_x)
 
@@ -387,18 +410,52 @@ class DomusEnv(gym.Env):
             {"comfort": c, "energy": e, "safety": s},
         )
 
+    def _exponential(self, mean_episode_length: int):
+        return -np.log(1 - self.np_random.uniform()) * mean_episode_length
+
     def reset(self) -> GymObs:
 
-        # create a new state vector for the cabin and hvac
-        self.ambient_t = KELVIN + 37
-        self.ambient_rh = 0.5
-        self.cabin_t = KELVIN + 37
-        self.cabin_v = 0
-        self.cabin_rh = 0.5
-        self.solar1 = 200
-        self.solar2 = 100
-        self.car_speed = 50
-        self.last_cab_t = None
+        self.episode_clock = 0
+        if self.fixed_episode_length is not None:
+            self.episode_length = self.fixed_episode_length
+        else:
+            self.episode_length = self._exponential(MEAN_EPISODE_LENGTH)
+
+        if self.use_random_scenario or self.use_scenario is not None:
+            if self.use_random_scenario:
+                i = self.np_random.randint(self.scenarios.shape[0])
+            else:
+                i = self.use_scenario
+            row = self.scenarios.loc[i]
+            self.ambient_t = row.ambient_t
+            self.ambient_rh = row.ambient_rh
+            self.cabin_t = row.cabin_t
+            self.cabin_rh = row.cabin_rh
+            self.cabin_v = row.cabin_v
+            self.solar1 = row.solar1
+            self.solar2 = row.solar2
+            self.car_speed = row.car_speed
+            self.configured_passengers = []
+            if row.psgr1:
+                self.configured_passengers.append(0)
+            if row.psgr2:
+                self.configured_passengers.append(1)
+            if row.psgr3:
+                self.configured_passengers.append(2)
+            self.pre_clo = row.pre_clo
+        else:
+            # create a new state vector for the cabin and hvac
+            self.ambient_t = KELVIN + 37
+            self.ambient_rh = 0.5
+            self.cabin_t = KELVIN + 37
+            self.cabin_v = 0
+            self.cabin_rh = 0.5
+            self.solar1 = 200
+            self.solar2 = 100
+            self.car_speed = 50
+            self.configured_passengers = [0, 1]
+            self.pre_clo = 0.7
+            self.last_cab_t = None
 
         self.b_x = kw_to_array(
             DV1_XT_COLUMNS,

@@ -34,7 +34,7 @@ def test_domus_env():
     s1, rew, done, info = env.step(a)
     assert s1 is not None
     assert env.observation_space.contains(s1)
-    assert isinstance(done, bool)
+    assert isinstance(done, bool), f"done is of type {type(done)}"
     # check that all keywords are included in info
     assert "comfort" in info
     assert "energy" in info
@@ -43,7 +43,7 @@ def test_domus_env():
 
     ctrl = SimpleHvac()
     s = env.reset()
-    for i in range(100):
+    for _ in range(100):
         a = ctrl.step(env.obs_tr.inverse_transform(s))
 
         #        print(f"a={a}")
@@ -62,6 +62,37 @@ def test_domus_env():
     assert s[1] < 305
 
 
+def test_domus_env_init():
+    env = DomusEnv(use_random_scenario=True)
+    env.seed(1)
+    obs = env.reset()
+    same_count = 0
+    N = 1000
+    for _ in range(N):
+        test_obs = env.reset()
+        if (test_obs == obs).all():
+            same_count += 1
+    assert same_count / N == approx(1 / 30, abs=0.08)
+
+
+def test_domus_env_specific_scenario():
+    env = DomusEnv(use_scenario=1)
+    obs = env.reset()
+    state = env.obs_tr.inverse_transform(obs)
+    # 1,272.15,0.99,272.15,0.99,0,0,0,100,FALSE,FALSE,FALSE,0.55
+    assert state == approx(
+        np.array(
+            [
+                0.99,
+                272.15,
+                22 + KELVIN,
+                272.15,
+                272.15,
+            ]
+        )
+    )
+
+
 def get_episode_len(env):
     s = env.reset()
     done = False
@@ -76,12 +107,20 @@ def get_episode_len(env):
 
 
 # long running test commented out for the moment
-# def test_seed():
-#     env = DomusEnv()
-#     env.seed(1)
-#     first_ep_len = get_episode_len(env)
-#     env.seed(1)
-#     assert first_ep_len == get_episode_len(env)
+def test_seed():
+    env = DomusEnv()
+    env.seed(1)
+    first_ep_len = get_episode_len(env)
+    assert env.episode_length <= first_ep_len <= env.episode_length + 1
+    env.seed(1)
+    assert first_ep_len == get_episode_len(env)
+
+
+def test_fixed_episode_len():
+    env = DomusEnv(fixed_episode_length=10)
+    _ = env.reset()
+    assert env.episode_length == 10
+    assert 10 == get_episode_len(env)
 
 
 def partial_kw_to_array(columns, **kwargs):
