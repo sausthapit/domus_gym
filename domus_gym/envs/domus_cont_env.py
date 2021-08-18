@@ -3,7 +3,6 @@
 """
 
 from gym import spaces  # error, spaces, utils
-
 from .domus_env import DomusEnv, BLOWER_MULT, BLOWER_ADD
 from .minmax import MinMaxTransform
 
@@ -14,7 +13,10 @@ import numpy as np
 class DomusContEnv(DomusEnv):
     metadata = {"render.modes": ["human"]}
 
-    def __init__(self):
+    def __init__(
+        self,
+        **kwargs,
+    ):
         """Description:
             Simulation of the thermal environment of a Fiat 500e car
             cabin.
@@ -22,7 +24,7 @@ class DomusContEnv(DomusEnv):
         This modifies DomusEnv by making the action_space continuous
 
         """
-        super(DomusContEnv, self).__init__()
+        super(DomusContEnv, self).__init__(**kwargs)
         act_min = np.array(
             [
                 5 * BLOWER_MULT + BLOWER_ADD,

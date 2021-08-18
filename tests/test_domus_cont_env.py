@@ -16,7 +16,7 @@ def test_domus_cont_env():
 
     ctrl = SimpleHvac()
     s = env.reset()
-    for i in range(100):
+    for _ in range(100):
         a = ctrl.step(env.obs_tr.inverse_transform(s))
 
         act = env.act_tr.transform(a)
@@ -27,3 +27,12 @@ def test_domus_cont_env():
             assert env.observation_space.contains(s)
         else:
             s = env.reset()
+
+
+def test_domus_cont_args():
+    env = DomusContEnv(use_random_scenario=True)
+    assert env.use_random_scenario
+    env = DomusContEnv(use_scenario=1)
+    assert env.use_scenario == 1
+    env = DomusContEnv(fixed_episode_length=100)
+    assert env.fixed_episode_length == 100
