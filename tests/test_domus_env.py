@@ -343,3 +343,9 @@ def test_last_cab_t():
     env = DomusEnv(use_scenario=1)
     env.reset()
     assert env.last_cab_t is None
+
+
+def test_configured_passengers():
+    env = DomusEnv(use_scenario=1)
+    env.reset()
+    assert env.configured_passengers == [0]

@@ -435,13 +435,13 @@ class DomusEnv(gym.Env):
             self.solar1 = row.solar1
             self.solar2 = row.solar2
             self.car_speed = row.car_speed
-            self.configured_passengers = []
+            self.configured_passengers = [0]
             if row.psgr1:
-                self.configured_passengers.append(0)
-            if row.psgr2:
                 self.configured_passengers.append(1)
-            if row.psgr3:
+            if row.psgr2:
                 self.configured_passengers.append(2)
+            if row.psgr3:
+                self.configured_passengers.append(3)
             self.pre_clo = row.pre_clo
         else:
             # create a new state vector for the cabin and hvac
