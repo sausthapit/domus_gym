@@ -329,3 +329,17 @@ def test_reward():
     assert c == approx(0)
     assert e == approx(0)
     assert s == approx(1)
+
+
+def test_last_cab_t():
+    env = DomusEnv()
+    env.reset()
+    assert env.last_cab_t is None
+
+    env = DomusEnv(use_random_scenario=True)
+    env.reset()
+    assert env.last_cab_t is None
+
+    env = DomusEnv(use_scenario=1)
+    env.reset()
+    assert env.last_cab_t is None

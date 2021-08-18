@@ -455,7 +455,9 @@ class DomusEnv(gym.Env):
             self.car_speed = 50
             self.configured_passengers = [0, 1]
             self.pre_clo = 0.7
-            self.last_cab_t = None
+
+        # reset last_cab_t
+        self.last_cab_t = None
 
         self.b_x = kw_to_array(
             DV1_XT_COLUMNS,
