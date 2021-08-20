@@ -57,7 +57,7 @@ def test_domus_env():
         else:
             s = env.reset()
     #       print(f"s={s}")
-    assert 0 < s[0] < 1
+    assert -1 <= s[0] <= 1
     # temperature should have decreased
     assert s[1] < 305
 

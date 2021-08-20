@@ -163,7 +163,7 @@ class DomusEnv(gym.Env):
         self.obs_tr = MinMaxTransform(obs_min, obs_max)
 
         self.observation_space = spaces.Box(
-            high=1, low=0, shape=obs_min.shape, dtype=np.float32
+            high=1, low=-1, shape=obs_min.shape, dtype=np.float32
         )
         self.action_grid = [
             # blower_level 5, 10, or 18

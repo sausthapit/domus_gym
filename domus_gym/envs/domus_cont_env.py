@@ -46,9 +46,7 @@ class DomusContEnv(DomusEnv):
             ]
         )
         self.act_tr = MinMaxTransform(act_min, act_max)
-        self.action_space = spaces.Box(
-            high=1, low=0, shape=act_min.shape, dtype=np.float32
-        )
+        self.action_space = spaces.Box(high=1, low=-1)
 
     def _convert_action(self, action: np.ndarray):
         """given some action, convert it first into the controller state
