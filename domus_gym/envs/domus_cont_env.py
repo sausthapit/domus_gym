@@ -2,12 +2,11 @@
 
 """
 
-from gym import spaces  # error, spaces, utils
-from .domus_env import DomusEnv, BLOWER_MULT, BLOWER_ADD
-from .minmax import MinMaxTransform
-
-
 import numpy as np
+from gym import spaces  # error, spaces, utils
+
+from .domus_env import BLOWER_ADD, BLOWER_MULT, DomusEnv
+from .minmax import MinMaxTransform
 
 
 class DomusContEnv(DomusEnv):

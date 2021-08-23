@@ -1,9 +1,8 @@
-from domus_gym.envs.minmax import MinMaxTransform
-
 import numpy as np
 from numpy.testing import assert_array_equal
-
 from pytest import approx
+
+from domus_gym.envs.minmax import MinMaxTransform
 
 
 def test_minmaxtransform():

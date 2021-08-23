@@ -1,19 +1,18 @@
-import gym
-from gym import spaces  # error, spaces, utils
 from typing import Optional
-from .minmax import MinMaxTransform
 
+import gym
+import numpy as np
+from gym import spaces  # error, spaces, utils
 from gym.utils import seeding
 from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
 
-import numpy as np
 from domus_mlsim import (
-    DV1Ut,
-    DV1Xt,
     DV1_XT_COLUMNS,
     HVAC_XT_COLUMNS,
-    HvacUt,
     KELVIN,
+    DV1Ut,
+    DV1Xt,
+    HvacUt,
     SimpleHvac,
     estimate_cabin_temperature_dv1,
     hcm_reduced,
@@ -28,6 +27,8 @@ from domus_mlsim import (
     update_dv1_inputs,
     update_hvac_inputs,
 )
+
+from .minmax import MinMaxTransform
 
 COMFORT_WEIGHT = 0.523
 ENERGY_WEIGHT = -0.477

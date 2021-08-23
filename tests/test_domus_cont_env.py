@@ -1,8 +1,5 @@
 from domus_gym.envs import DomusContEnv
-
-from domus_mlsim import (
-    SimpleHvac,
-)
+from domus_mlsim import SimpleHvac
 
 
 def test_domus_cont_env():
