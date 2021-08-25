@@ -18,7 +18,6 @@ from domus_mlsim import (
 )
 
 from .domus_env import BLOWER_ADD, BLOWER_MULT, DomusEnv
-from .minmax import MinMaxTransform
 
 KMH_TO_MS = 1000 / 3600
 
@@ -234,12 +233,14 @@ class DomusFullEnv(DomusEnv):
         # new_air_mode is 0 - n, translate this into one-hot
         if new_air_mode > 0:
             iaction[
-                new_air_mode + self.InternalAction.new_air_mode_Bi_Level_SO_Side_Low - 1
+                int(new_air_mode)
+                + self.InternalAction.new_air_mode_Bi_Level_SO_Side_Low
+                - 1
             ] = 1
 
         seat = rounded_action[self.Action.seat]
         if seat > 0:
-            iaction[seat + self.Internalaction.seat_off - 1] = 1
+            iaction[int(seat) + self.InternalAction.seat_off - 1] = 1
 
         iaction[
             [
