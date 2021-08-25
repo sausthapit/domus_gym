@@ -516,12 +516,6 @@ class DomusEnv(gym.Env):
         # convert state to control input
         return self._convert_state()
 
-        # cab_t = estimate_cabin_temperature_dv1(self.b_x)
-        # c_u = np.zeros((len(SimpleHvac.Ut)))
-        # c_u[SimpleHvac.Ut.setpoint] = self.setpoint
-        # update_control_inputs_dv1(c_u, self.b_x, self.h_x, cab_t)
-        # return c_u
-
     def render(self, mode="human"):
         pass
 
