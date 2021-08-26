@@ -32,6 +32,7 @@ class DomusContEnv(DomusEnv):
                 0,
                 0,
                 0,
+                0,
             ]
         )
         act_max = np.array(
@@ -40,6 +41,7 @@ class DomusContEnv(DomusEnv):
                 3000,
                 6000,
                 400,
+                1,
                 1,
                 1,
             ]

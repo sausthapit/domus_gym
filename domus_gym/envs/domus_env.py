@@ -179,7 +179,10 @@ class DomusEnv(gym.Env):
             np.linspace(0, 1, 3),
             # window_heating 0 or 1
             np.linspace(0, 1, 2),
+            # dist_defrost
+            np.linspace(0, 1, 2),
         ]
+        assert len(self.action_grid) == len(SimpleHvac.Xt)
         self.action_space = spaces.MultiDiscrete([len(x) for x in self.action_grid])
 
         self.dv1_scaler_and_model = load_dv1()
