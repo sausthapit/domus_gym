@@ -14,7 +14,7 @@ def test_domus_cont_env():
     ctrl = SimpleHvac()
     s = env.reset()
     for _ in range(100):
-        a = ctrl.step(env.obs_tr.inverse_transform(s))
+        a = ctrl.step(env.hvac_action(s))
 
         act = env.act_tr.transform(a)
 

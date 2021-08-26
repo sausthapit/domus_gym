@@ -44,7 +44,7 @@ def test_domus_env():
     ctrl = SimpleHvac()
     s = env.reset()
     for _ in range(100):
-        a = ctrl.step(env.obs_tr.inverse_transform(s))
+        a = ctrl.step(env.hvac_action(s))
 
         #        print(f"a={a}")
         # convert an continuous control value into a discrete one
@@ -87,6 +87,9 @@ def test_domus_env_specific_scenario():
                 22 + KELVIN,
                 295.15,
                 295.15,
+                0,
+                0,
+                0,
             ]
         )
     )
@@ -346,5 +349,6 @@ def test_last_cab_t():
 
 def test_configured_passengers():
     env = DomusEnv(use_scenario=1)
-    env.reset()
+    s = env.reset()
     assert env.configured_passengers == [0]
+    assert sum(s[env.StateExtra.psgr1 : env.StateExtra.psgr3]) == -2

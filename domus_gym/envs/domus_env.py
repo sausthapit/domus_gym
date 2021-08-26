@@ -1,3 +1,4 @@
+from enum import IntEnum
 from typing import Optional
 
 import gym
@@ -64,6 +65,16 @@ REWARD_SHAPE_SCALE = 0.1
 class DomusEnv(gym.Env):
     metadata = {"render.modes": ["human"]}
 
+    StateExtra = IntEnum(
+        "StateExtra",
+        [
+            "psgr1",
+            "psgr2",
+            "psgr3",
+        ],
+        start=len(SimpleHvac.Ut),
+    )
+
     def __init__(
         self,
         use_random_scenario: bool = False,
@@ -94,7 +105,10 @@ class DomusEnv(gym.Env):
                 cabin_temperature,
                 setpoint,
                 vent_temperature,
-                window_temperature
+                window_temperature,
+                passenger 1 present,
+                passenger 2 present,
+                passenger 3 present
             ]
 
         Actions:
@@ -147,6 +161,9 @@ class DomusEnv(gym.Env):
                 KELVIN + 15,
                 KELVIN + 0,
                 KELVIN - 20,
+                0,
+                0,
+                0,
             ],
             dtype=np.float32,
         )
@@ -157,6 +174,9 @@ class DomusEnv(gym.Env):
                 KELVIN + 28,
                 KELVIN + 80,
                 KELVIN + 60,
+                1,
+                1,
+                1,
             ],
             dtype=np.float32,
         )
@@ -193,6 +213,8 @@ class DomusEnv(gym.Env):
         # set up work areas
         self.h_u = np.zeros((len(HvacUt)))
         self.b_u = np.zeros((len(DV1Ut)))
+        self.c_u = np.zeros((len(SimpleHvac.Ut) + len(self.StateExtra)))
+        self.c_u[SimpleHvac.Ut.setpoint] = self.setpoint
         self.seed()
 
     def seed(self, seed=None):
@@ -201,11 +223,9 @@ class DomusEnv(gym.Env):
 
     def _convert_state(self):
         """given the current state, create a vector that can be used as input to the controller"""
-        c_u = np.zeros((len(SimpleHvac.Ut)))
-        c_u[SimpleHvac.Ut.setpoint] = self.setpoint
         cab_t = estimate_cabin_temperature_dv1(self.b_x)
-        update_control_inputs_dv1(c_u, self.b_x, self.h_x, cab_t)
-        return self.obs_tr.transform(c_u)
+        update_control_inputs_dv1(self.c_u, self.b_x, self.h_x, cab_t)
+        return self.obs_tr.transform(self.c_u)
 
     def _convert_action(self, action):
         """given some action, convert it first into the controller state
@@ -444,12 +464,18 @@ class DomusEnv(gym.Env):
             self.solar2 = row.solar2
             self.car_speed = row.car_speed
             self.configured_passengers = [0]
+            self.c_u[self.StateExtra.psgr1] = 0
+            self.c_u[self.StateExtra.psgr2] = 0
+            self.c_u[self.StateExtra.psgr3] = 0
             if row.psgr1:
                 self.configured_passengers.append(1)
+                self.c_u[self.StateExtra.psgr1] = 1
             if row.psgr2:
                 self.configured_passengers.append(2)
+                self.c_u[self.StateExtra.psgr1] = 2
             if row.psgr3:
                 self.configured_passengers.append(3)
+                self.c_u[self.StateExtra.psgr1] = 3
             self.pre_clo = row.pre_clo
         else:
             # create a new state vector for the cabin and hvac
@@ -462,6 +488,10 @@ class DomusEnv(gym.Env):
             self.solar2 = 100
             self.car_speed = 50
             self.configured_passengers = [0, 1]
+            self.c_u[self.StateExtra.psgr1] = 1
+            self.c_u[self.StateExtra.psgr2] = 0
+            self.c_u[self.StateExtra.psgr3] = 0
+
             self.pre_clo = 0.7
 
         # reset last_cab_t
@@ -528,3 +558,6 @@ class DomusEnv(gym.Env):
 
     def close(self):
         pass
+
+    def hvac_action(self, s):
+        return self.obs_tr.inverse_transform(s)[: len(SimpleHvac.Ut)]
