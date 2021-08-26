@@ -353,12 +353,16 @@ class DomusEnv(gym.Env):
 
         :math:f_n(t) = 0.523 c(t) - 0.477e_n(t) + 2 ( s(t) - 1 ),
 
+        to get rewards that are more stable with varying length episodes, we alter to:
+
+        :math:f_n(t) = 0.523 (c(t) - 1) - 0.477 e_n(t) + 2 ( s(t) - 1 ),
+
         """
         c = self._comfort(b_x, h_u)
         e = self._energy(h_u)
         s = self._safety(b_x, cab_t)
         r = (
-            COMFORT_WEIGHT * c
+            COMFORT_WEIGHT * (c - 1)
             + ENERGY_WEIGHT * e
             + 2 * (s - 1)
             + REWARD_SHAPE_SCALE * self._reward_shaped(cab_t, self.last_cab_t)
