@@ -346,7 +346,7 @@ class DomusEnv(gym.Env):
         )
         # TODO window heating, radiant panels, heated seats
 
-        return self._normalise_energy(energy)
+        return energy
 
     def _safety(self, b_x, cab_t):
         """safety is defined based on window fogging. This is estimated from
@@ -386,7 +386,7 @@ class DomusEnv(gym.Env):
         s = self._safety(b_x, cab_t)
         r = (
             COMFORT_WEIGHT * (c - 1)
-            + ENERGY_WEIGHT * e
+            + ENERGY_WEIGHT * self._normalise_energy(e)
             + 2 * (s - 1)
             + REWARD_SHAPE_SCALE * self._reward_shaped(cab_t, self.last_cab_t)
         )
