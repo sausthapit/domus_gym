@@ -2,8 +2,9 @@ import numpy as np
 from pytest import approx
 
 from domus_gym.envs import DomusEnv
-from domus_gym.envs.domus_env import BLOWER_MIN
+from domus_gym.envs.domus_env import BLOWER_MIN, ENERGY_MAX, ENERGY_MIN
 from domus_mlsim import (
+    DV1_UT_COLUMNS,
     DV1_XT_COLUMNS,
     HVAC_UT_COLUMNS,
     KELVIN,
@@ -238,13 +239,102 @@ def test_energy():
         fan_power=400,
         hv_heater=6000,
     )
-    assert env._energy(h_u) == approx(1)
+    b_u = partial_kw_to_array(
+        DV1_UT_COLUMNS,
+        radiant_panel_1=0,
+        radiant_panel_2=0,
+        radiant_panel_3=0,
+        radiant_panel_4=0,
+        seat_off=1,
+        seat_ventilate=0,
+        window_heating=0,
+    )
+
+    assert env._energy(b_u, h_u) == approx(9800)
     # zeros
     h_u = partial_kw_to_array(
         HVAC_UT_COLUMNS,
         blw_power=17 * 5 + 94,
     )
-    assert env._energy(h_u) == approx(0)
+    assert env._energy(b_u, h_u) == approx(179)
+
+    # rad 1 on
+    b_u = partial_kw_to_array(
+        DV1_UT_COLUMNS,
+        radiant_panel_1=1,
+        radiant_panel_2=0,
+        radiant_panel_3=0,
+        radiant_panel_4=0,
+        seat_off=1,
+        seat_ventilate=0,
+        window_heating=0,
+    )
+    assert env._energy(b_u, h_u) == approx(179 + 42.4)
+
+    # rad 2 on
+    b_u = partial_kw_to_array(
+        DV1_UT_COLUMNS,
+        radiant_panel_1=0,
+        radiant_panel_2=1,
+        radiant_panel_3=0,
+        radiant_panel_4=0,
+        seat_off=1,
+        seat_ventilate=0,
+        window_heating=0,
+    )
+    assert env._energy(b_u, h_u) == approx(179 + 43.2)
+
+    # rad 3 on
+    b_u = partial_kw_to_array(
+        DV1_UT_COLUMNS,
+        radiant_panel_1=0,
+        radiant_panel_2=0,
+        radiant_panel_3=1,
+        radiant_panel_4=0,
+        seat_off=1,
+        seat_ventilate=0,
+        window_heating=0,
+    )
+    assert env._energy(b_u, h_u) == approx(179 + 32.6)
+
+    # rad 4 on
+    b_u = partial_kw_to_array(
+        DV1_UT_COLUMNS,
+        radiant_panel_1=0,
+        radiant_panel_2=0,
+        radiant_panel_3=0,
+        radiant_panel_4=1,
+        seat_off=1,
+        seat_ventilate=0,
+        window_heating=0,
+    )
+    assert env._energy(b_u, h_u) == approx(179 + 32.6)
+
+    # seat on
+    b_u = partial_kw_to_array(
+        DV1_UT_COLUMNS,
+        radiant_panel_1=0,
+        radiant_panel_2=0,
+        radiant_panel_3=0,
+        radiant_panel_4=0,
+        seat_off=0,
+        seat_ventilate=0,
+        window_heating=0,
+    )
+    assert env._energy(b_u, h_u) == approx(179 + 216)
+
+    # window heating on
+    b_u = partial_kw_to_array(
+        DV1_UT_COLUMNS,
+        radiant_panel_1=0,
+        radiant_panel_2=0,
+        radiant_panel_3=0,
+        radiant_panel_4=0,
+        seat_off=1,
+        seat_ventilate=0,
+        window_heating=1,
+    )
+    assert env._energy(b_u, h_u) == approx(179 + 2470)
 
 
 def test_safety():
@@ -276,6 +366,18 @@ def test_reward():
     env = DomusEnv()
 
     _ = env.reset()
+    # cabin active elements turned off
+    b_u = partial_kw_to_array(
+        DV1_UT_COLUMNS,
+        radiant_panel_1=0,
+        radiant_panel_2=0,
+        radiant_panel_3=0,
+        radiant_panel_4=0,
+        seat_off=1,
+        seat_ventilate=0,
+        window_heating=0,
+    )
+
     # max energy, safe, comfort
     h_u = partial_kw_to_array(
         HVAC_UT_COLUMNS,
@@ -287,18 +389,27 @@ def test_reward():
     )
     b_x = make_b_x(KELVIN + 22, 0.5, KELVIN + 22)
     cab_t = estimate_cabin_temperature_dv1(b_x)
-    r, c, e, s = env._reward(b_x, h_u, cab_t)
-    assert r == approx(0.523 * (1 - 1) - 0.477 * 1 + 2 * (1 - 1))
+    r, c, e, s = env._reward(b_x, b_u, h_u, cab_t)
     assert c == approx(1)
-    assert e == approx(1)
+    assert e == approx(9800)
     assert s == approx(1)
+    assert env._reward_shaped(cab_t, env.last_cab_t) == approx(0)
+    assert r == approx(
+        0.523 * (1 - 1)
+        - 0.477 * ((9800 - ENERGY_MIN) / (ENERGY_MAX - ENERGY_MIN))
+        + 2 * (1 - 1)
+    )
 
     # max energy, not safe, comfort
     b_x = make_b_x(KELVIN + 22, 0.9, KELVIN + 2)
-    r, c, e, s = env._reward(b_x, h_u, cab_t)
-    assert r == approx(0.523 * (1 - 1) - 0.477 * 1 + 2 * (0 - 1))
+    r, c, e, s = env._reward(b_x, b_u, h_u, cab_t)
+    assert r == approx(
+        0.523 * (1 - 1)
+        - 0.477 * ((9800 - ENERGY_MIN) / (ENERGY_MAX - ENERGY_MIN))
+        + 2 * (0 - 1)
+    )
     assert c == approx(1)
-    assert e == approx(1)
+    assert e == approx(9800)
     assert s == approx(0)
 
     # min energy, safe, comfort
@@ -312,10 +423,10 @@ def test_reward():
     )
     b_x = make_b_x(KELVIN + 22, 0.5, KELVIN + 22)
     env.last_cab_t = KELVIN + 22
-    r, c, e, s = env._reward(b_x, h_u, cab_t)
+    r, c, e, s = env._reward(b_x, b_u, h_u, cab_t)
     assert r == approx(0.523 * 0 - 0.477 * 0 + 2 * (1 - 1))
     assert c == approx(1)
-    assert e == approx(0)
+    assert e == approx(179)
     assert s == approx(1)
 
     assert env._phi(18 + KELVIN) == approx(-4)
@@ -326,10 +437,10 @@ def test_reward():
     env.last_cab_t = KELVIN + 18
     b_x = make_b_x(KELVIN + 17, 0.5, KELVIN + 22)
     cab_t = estimate_cabin_temperature_dv1(b_x)
-    r, c, e, s = env._reward(b_x, h_u, cab_t)
+    r, c, e, s = env._reward(b_x, b_u, h_u, cab_t)
     assert r == approx(0.523 * -1 - 0.477 * 0 + 2 * (1 - 1) + 0.1 * (0.99 * -5 + 4))
     assert c == approx(0)
-    assert e == approx(0)
+    assert e == approx(179)
     assert s == approx(1)
 
 

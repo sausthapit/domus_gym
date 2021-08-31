@@ -477,7 +477,7 @@ class DomusFullEnv(DomusEnv):
         ]
         _, self.b_x = self.dv1_sim.step(self.b_u)
 
-        rew, c, e, s = self._reward(self.b_x, self.h_u, cab_t)
+        rew, c, e, s = self._reward(self.b_x, self.b_u, self.h_u, cab_t)
         self.last_cab_t = cab_t
         return (
             self._convert_state(),

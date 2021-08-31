@@ -43,14 +43,47 @@ FAN_MAX = 400
 BLOWER_MIN = 5 * BLOWER_MULT + BLOWER_ADD
 BLOWER_MAX = 18 * BLOWER_MULT + BLOWER_ADD
 
+# heated surface power ratings
+RAD_POWER = [42.4, 43.2, 32.6, 32.6]
+SEAT_POWER = 216
+WINDOW_POWER = 2470
+HVAC_ENERGY = np.zeros((len(HvacUt)))
+HVAC_ENERGY[
+    [HvacUt.blw_power, HvacUt.cmp_power, HvacUt.fan_power, HvacUt.hv_heater]
+] = 1
+CABIN_ENERGY = np.zeros((len(DV1Ut)))
+CABIN_ENERGY[
+    [
+        DV1Ut.radiant_panel_1,
+        DV1Ut.radiant_panel_2,
+        DV1Ut.radiant_panel_3,
+        DV1Ut.radiant_panel_4,
+    ]
+] = RAD_POWER
+# note that seat heating is inverted
+CABIN_ENERGY[[DV1Ut.seat_off, DV1Ut.seat_ventilate, DV1Ut.window_heating]] = [
+    -SEAT_POWER,
+    -SEAT_POWER,
+    WINDOW_POWER,
+]
+
 ENERGY_MIN = BLOWER_MIN
-ENERGY_MAX = BLOWER_MAX + COMPRESSOR_MAX + HV_HEATER_MAX + FAN_MAX
+ENERGY_MAX = (
+    BLOWER_MAX
+    + COMPRESSOR_MAX
+    + HV_HEATER_MAX
+    + FAN_MAX
+    + SEAT_POWER
+    + np.sum(RAD_POWER)
+    + WINDOW_POWER
+)
 
 DEWPOINT_LOWER = 2
 DEWPOINT_UPPER = 5
 
 # exponential distribution for 23 minute mean episode length
 MEAN_EPISODE_LENGTH = 23 * 60
+
 
 # this value of gamma should match that used for learning and is used for reward shaping
 # as per Ng et al (1999) "Policy invariance under reward transformations ..."
@@ -338,13 +371,10 @@ class DomusEnv(gym.Env):
         """normalise energy value to be between 0 and 1"""
         return (energy - ENERGY_MIN) / (ENERGY_MAX - ENERGY_MIN)
 
-    def _energy(self, h_u):
-        energy = np.sum(
-            h_u[
-                [HvacUt.blw_power, HvacUt.cmp_power, HvacUt.fan_power, HvacUt.hv_heater]
-            ]
-        )
-        # TODO window heating, radiant panels, heated seats
+    def _energy(self, b_u, h_u):
+        """find total power in watts of current cabin state and hvac controls"""
+        energy = np.dot(b_u, CABIN_ENERGY)
+        energy += np.dot(h_u, HVAC_ENERGY) + SEAT_POWER
 
         return energy
 
@@ -368,7 +398,7 @@ class DomusEnv(gym.Env):
         else:
             return (delta_t - DEWPOINT_LOWER) / (DEWPOINT_UPPER - DEWPOINT_LOWER)
 
-    def _reward(self, b_x, h_u, cab_t):
+    def _reward(self, b_x, b_u, h_u, cab_t):
         """fitness function based on state
 
         according to the domus d1.2 assessment framework, the fitness
@@ -382,7 +412,7 @@ class DomusEnv(gym.Env):
 
         """
         c = self._comfort(b_x, h_u)
-        e = self._energy(h_u)
+        e = self._energy(b_u, h_u)
         s = self._safety(b_x, cab_t)
         r = (
             COMFORT_WEIGHT * (c - 1)
@@ -429,7 +459,7 @@ class DomusEnv(gym.Env):
         update_dv1_inputs(b_u, self.h_x, c_x)
         _, self.b_x = self.dv1_sim.step(b_u)
 
-        rew, c, e, s = self._reward(self.b_x, h_u, cab_t)
+        rew, c, e, s = self._reward(self.b_x, b_u, h_u, cab_t)
         self.last_cab_t = cab_t
         return (
             self._convert_state(),
