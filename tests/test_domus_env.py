@@ -11,6 +11,7 @@ from domus_mlsim import (
     SimpleHvac,
     estimate_cabin_temperature_dv1,
     hcm_reduced,
+    kw_to_array,
 )
 
 
@@ -81,17 +82,22 @@ def test_domus_env_specific_scenario():
     obs = env.reset()
     state = env.obs_tr.inverse_transform(obs)
     assert state == approx(
-        np.array(
-            [
-                0.5,
-                295.15,
-                22 + KELVIN,
-                295.15,
-                295.15,
-                0,
-                0,
-                0,
-            ]
+        kw_to_array(
+            env.STATE_COLUMNS,
+            cabin_humidity=0.5,
+            cabin_temperature=KELVIN + 22,
+            setpoint=KELVIN + 22,
+            vent_temperature=KELVIN + 22,
+            window_temperature=KELVIN + 22,
+            psgr1=0,
+            psgr2=0,
+            psgr3=0,
+            ambient_t=KELVIN + 0,
+            ambient_rh=1,
+            solar1=0,
+            solar2=0,
+            car_speed=100,
+            pre_clo=0.55,
         )
     )
 
@@ -463,3 +469,19 @@ def test_configured_passengers():
     s = env.reset()
     assert env.configured_passengers == [0]
     assert sum(s[env.StateExtra.psgr1 : env.StateExtra.psgr3]) == -2
+
+
+def test_state_has_ambient():
+    env = DomusEnv(use_scenario=0)
+    env2 = DomusEnv(use_scenario=1)
+    assert env.reset() != approx(env2.reset())
+
+    assert env.c_u[env.StateExtra.ambient_t] == approx(263.15)
+    assert env.c_u[env.StateExtra.ambient_rh] == approx(0.6)
+    assert env.c_u[env.StateExtra.solar1] == approx(0)
+    assert env.c_u[env.StateExtra.solar2] == approx(0)
+    assert env.c_u[env.StateExtra.car_speed] == approx(50)
+    assert env.c_u[env.StateExtra.pre_clo] == approx(0.7)
+    assert env.c_u[env.StateExtra.psgr1] == 0
+    assert env.c_u[env.StateExtra.psgr2] == 0
+    assert env.c_u[env.StateExtra.psgr3] == 0

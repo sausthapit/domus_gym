@@ -52,9 +52,7 @@ class DomusContEnv(DomusEnv):
         )
 
     def _convert_action(self, action: np.ndarray):
-        """given some action, convert it first into the controller state
-        SimpleHvac.Xt and then into control inputs to the cabin and
-        hvac.
+        """given some action, convert into SimpleHvac.Xt
 
         action is a ndarray
 

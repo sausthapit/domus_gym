@@ -104,9 +104,17 @@ class DomusEnv(gym.Env):
             "psgr1",
             "psgr2",
             "psgr3",
+            "ambient_t",
+            "ambient_rh",
+            "solar1",
+            "solar2",
+            "car_speed",
+            "pre_clo",
         ],
         start=len(SimpleHvac.Ut),
     )
+
+    STATE_COLUMNS = SimpleHvac.UT_COLUMNS + [x.name for x in StateExtra]
 
     def __init__(
         self,
@@ -128,6 +136,11 @@ class DomusEnv(gym.Env):
 
             select a specific scenario (range 0 - 28) (see domus_mlsim.scenario for more information)
 
+          fixed_episode_length : int
+
+            set a fixed episode length in seconds (default is random
+            exponential distribution with mean of 23 minutes)
+
         Observation:
 
             The environment is not fully observable. The temperature
@@ -141,7 +154,12 @@ class DomusEnv(gym.Env):
                 window_temperature,
                 passenger 1 present,
                 passenger 2 present,
-                passenger 3 present
+                passenger 3 present,
+                ambient_temperature,
+                ambient_humidity,
+                solar1,
+                solar2,
+                car_speed,
             ]
 
         Actions:
@@ -187,31 +205,39 @@ class DomusEnv(gym.Env):
         assert use_scenario is None or not use_random_scenario
         self.fixed_episode_length = fixed_episode_length
         self.scenarios = load_scenarios()
-        obs_min = np.array(
-            [
-                0,
-                KELVIN - 20,
-                KELVIN + 15,
-                KELVIN + 0,
-                KELVIN - 20,
-                0,
-                0,
-                0,
-            ],
-            dtype=np.float32,
+        obs_min = kw_to_array(
+            self.STATE_COLUMNS,
+            cabin_humidity=0,
+            cabin_temperature=KELVIN - 20,
+            setpoint=KELVIN + 15,
+            vent_temperature=KELVIN + 0,
+            window_temperature=KELVIN - 20,
+            psgr1=0,
+            psgr2=0,
+            psgr3=0,
+            ambient_t=KELVIN - 20,
+            ambient_rh=0,
+            solar1=0,
+            solar2=0,
+            car_speed=0,
+            pre_clo=0,
         )
-        obs_max = np.array(
-            [
-                1,
-                KELVIN + 60,
-                KELVIN + 28,
-                KELVIN + 80,
-                KELVIN + 60,
-                1,
-                1,
-                1,
-            ],
-            dtype=np.float32,
+        obs_max = kw_to_array(
+            self.STATE_COLUMNS,
+            cabin_humidity=1,
+            cabin_temperature=KELVIN + 60,
+            setpoint=KELVIN + 28,
+            vent_temperature=KELVIN + 80,
+            window_temperature=KELVIN + 60,
+            psgr1=1,
+            psgr2=1,
+            psgr3=1,
+            ambient_t=KELVIN + 50,
+            ambient_rh=1,
+            solar1=300,
+            solar2=300,
+            car_speed=200,
+            pre_clo=2,
         )
 
         self.obs_tr = MinMaxTransform(obs_min, obs_max)
@@ -471,6 +497,18 @@ class DomusEnv(gym.Env):
     def _exponential(self, mean_episode_length: int):
         return -np.log(1 - self.np_random.uniform()) * mean_episode_length
 
+    def _init_c_u(self):
+        self.c_u[self.StateExtra.psgr1] = int(1 in self.configured_passengers)
+        self.c_u[self.StateExtra.psgr2] = int(2 in self.configured_passengers)
+        self.c_u[self.StateExtra.psgr3] = int(3 in self.configured_passengers)
+
+        self.c_u[self.StateExtra.ambient_t] = self.ambient_t
+        self.c_u[self.StateExtra.ambient_rh] = self.ambient_rh
+        self.c_u[self.StateExtra.solar1] = self.solar1
+        self.c_u[self.StateExtra.solar2] = self.solar2
+        self.c_u[self.StateExtra.car_speed] = self.car_speed
+        self.c_u[self.StateExtra.pre_clo] = self.pre_clo
+
     def reset(self) -> GymObs:
 
         self.episode_clock = 0
@@ -494,18 +532,12 @@ class DomusEnv(gym.Env):
             self.solar2 = row.solar2
             self.car_speed = row.car_speed
             self.configured_passengers = [0]
-            self.c_u[self.StateExtra.psgr1] = 0
-            self.c_u[self.StateExtra.psgr2] = 0
-            self.c_u[self.StateExtra.psgr3] = 0
             if row.psgr1:
                 self.configured_passengers.append(1)
-                self.c_u[self.StateExtra.psgr1] = 1
             if row.psgr2:
                 self.configured_passengers.append(2)
-                self.c_u[self.StateExtra.psgr1] = 2
             if row.psgr3:
                 self.configured_passengers.append(3)
-                self.c_u[self.StateExtra.psgr1] = 3
             self.pre_clo = row.pre_clo
         else:
             # create a new state vector for the cabin and hvac
@@ -518,11 +550,9 @@ class DomusEnv(gym.Env):
             self.solar2 = 100
             self.car_speed = 50
             self.configured_passengers = [0, 1]
-            self.c_u[self.StateExtra.psgr1] = 1
-            self.c_u[self.StateExtra.psgr2] = 0
-            self.c_u[self.StateExtra.psgr3] = 0
 
             self.pre_clo = 0.7
+        self._init_c_u()
 
         # reset last_cab_t
         self.last_cab_t = None
