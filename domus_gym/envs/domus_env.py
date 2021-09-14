@@ -458,34 +458,45 @@ class DomusEnv(gym.Env):
         distribution or fixed (typically for evaluation purposes)."""
         return bool(self.episode_clock >= self.episode_length)
 
-    def step(self, action: np.ndarray) -> GymStepReturn:
-        self.episode_clock += 1
-        c_x = self._convert_action(action)
-        cab_t = estimate_cabin_temperature_dv1(self.b_x)
-
-        # TODO pre-create h_u and b_u in init
-        h_u = np.zeros((len(HvacUt)))
-        h_u[[HvacUt.ambient, HvacUt.humidity, HvacUt.solar, HvacUt.speed]] = [
+    def _step_hvac(self, c_x, cab_t):
+        self.h_u[[HvacUt.ambient, HvacUt.humidity, HvacUt.solar, HvacUt.speed]] = [
             self.ambient_t,
             self.ambient_rh,
             self.solar1,
             self.car_speed,
         ]
-        update_hvac_inputs(h_u, c_x, cab_t)
-        _, self.h_x = self.hvac_sim.step(h_u)
+        update_hvac_inputs(self.h_u, c_x, cab_t)
+        _, self.h_x = self.hvac_sim.step(self.h_u)
 
-        b_u = np.zeros((len(DV1Ut)))
-        b_u[[DV1Ut.t_a, DV1Ut.rh_a, DV1Ut.rad1, DV1Ut.rad2, DV1Ut.VehicleSpeed,]] = [
+    def _step_cabin(self, c_x):
+        self.b_u[
+            [
+                DV1Ut.t_a,
+                DV1Ut.rh_a,
+                DV1Ut.rad1,
+                DV1Ut.rad2,
+                DV1Ut.VehicleSpeed,
+            ]
+        ] = [
             self.ambient_t,
             self.ambient_rh,
             self.solar1,
             self.solar2,
             self.car_speed / 100 * 27.778,
         ]
-        update_dv1_inputs(b_u, self.h_x, c_x)
-        _, self.b_x = self.dv1_sim.step(b_u)
+        update_dv1_inputs(self.b_u, self.h_x, c_x)
+        _, self.b_x = self.dv1_sim.step(self.b_u)
 
-        rew, c, e, s = self._reward(self.b_x, b_u, h_u, cab_t)
+    def step(self, action: np.ndarray) -> GymStepReturn:
+        self.episode_clock += 1
+        c_x = self._convert_action(action)
+        cab_t = estimate_cabin_temperature_dv1(self.b_x)
+
+        self._step_hvac(c_x, cab_t)
+
+        self._step_cabin(c_x)
+
+        rew, c, e, s = self._reward(self.b_x, self.b_u, self.h_u, cab_t)
         self.last_cab_t = cab_t
         return (
             self._convert_state(),
