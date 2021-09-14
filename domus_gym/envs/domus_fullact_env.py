@@ -2,7 +2,7 @@
 
 """
 
-from enum import IntEnum
+from enum import Enum, IntEnum, auto
 
 import numpy as np
 from gym import spaces  # error, spaces, utils
@@ -11,6 +11,7 @@ from domus_mlsim import DV1Ut, HvacUt, HvacXt
 
 from .domus_cont_env import DomusContEnv
 from .domus_env import BLOWER_ADD, BLOWER_MULT
+from .minmax import MinMaxTransform
 
 KMH_TO_MS = 1000 / 3600
 
@@ -107,8 +108,15 @@ class DomusFullActEnv(DomusContEnv):
         start=0,
     )
 
+    class Config(Enum):
+        radiant = 1
+        seat = 2
+        smartvent = 4
+        windowheating = 8
+
     def __init__(
         self,
+        configuration=0,
         **kwargs,
     ):
         """Description:
@@ -146,8 +154,9 @@ class DomusFullActEnv(DomusContEnv):
                 6000,
             ]
         )
+        self.act_tr = MinMaxTransform(act_min, act_max)
         self.action_space = spaces.Box(
-            high=act_max, low=act_min, shape=act_min.shape, dtype=np.float32
+            high=1, low=-1, shape=act_min.shape, dtype=np.float32
         )
 
     def _convert_action(self, action: np.ndarray):
@@ -160,6 +169,7 @@ class DomusFullActEnv(DomusContEnv):
         assert self.action_space.contains(  # TODO move to test code
             action
         ), f"action {action} is not in the action_space {self.action_space}"
+        action = self.act_tr.inverse_transform(action)
         rounded_action = np.around(action)
         iaction = np.zeros((len(self.InternalAction)))
         new_air_mode = rounded_action[self.Action.new_air_mode]

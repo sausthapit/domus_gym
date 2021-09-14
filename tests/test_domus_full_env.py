@@ -18,6 +18,7 @@ def test_full_env():
 
         # max heating and radiant panels
         a = np.array([0, 1, 1, 1, 1, 0, 0, 1, 400, 0, 0, 1, 1, 6000])
+        a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
         s, rew, done, info = env.step(a)
 
@@ -34,6 +35,7 @@ def test_new_air():
     for mode in range(1, len(DomusFullEnv.NewAirMode)):
 
         a = np.array([mode, 1, 1, 1, 1, 0, 0, 1, 400, 0, 0, 1, 1, 6000])
+        a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
         s, rew, done, info = env.step(a)
 
@@ -46,6 +48,7 @@ def test_seat():
     for mode in range(1, len(DomusFullEnv.Seat)):
 
         a = np.array([0, 1, 1, 1, 1, mode, 0, 1, 400, 0, 0, 1, 1, 6000])
+        a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
         s, rew, done, info = env.step(a)
 
@@ -58,6 +61,7 @@ def test_smart_vent():
     for mode in range(1, len(DomusFullEnv.SmartVent)):
 
         a = np.array([0, 1, 1, 1, 1, 0, mode, 1, 400, 0, 0, 1, 1, 6000])
+        a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
         s, rew, done, info = env.step(a)
 
