@@ -16,6 +16,17 @@ from .minmax import MinMaxTransform
 KMH_TO_MS = 1000 / 3600
 
 
+class Config(IntEnum):
+    radiant = 1
+    seat = 2
+    smartvent = 4
+    windowheating = 8
+    newairmode = 16
+
+
+CONFIG_ALL = sum([x.value for x in Config])
+
+
 class DomusFullActEnv(DomusContEnv):
     metadata = {"render.modes": []}
 
@@ -108,15 +119,9 @@ class DomusFullActEnv(DomusContEnv):
         start=0,
     )
 
-    class Config(Enum):
-        radiant = 1
-        seat = 2
-        smartvent = 4
-        windowheating = 8
-
     def __init__(
         self,
-        configuration=0,
+        configuration=CONFIG_ALL,
         **kwargs,
     ):
         """Description:
@@ -124,6 +129,17 @@ class DomusFullActEnv(DomusContEnv):
             cabin.
 
         This modifies DomusContEnv by expanding the action space.
+
+        Parameters
+        ----------
+
+        configuration
+
+          defaults to all options included
+
+          use a sum of Config enums to select a particular
+          configuration. e.g., to turn on just the seat and smartvent,
+          use `configuration=Config.seat + Config.smartvent'
 
         """
         super(DomusFullActEnv, self).__init__(**kwargs)
@@ -158,6 +174,19 @@ class DomusFullActEnv(DomusContEnv):
         self.action_space = spaces.Box(
             high=1, low=-1, shape=act_min.shape, dtype=np.float32
         )
+        self.configuration = configuration
+
+    def _mask_action(self, action: np.ndarray):
+        if self.configuration & Config.radiant == 0:
+            action[self.Action.radiant_panel_1 : self.Action.radiant_panel_4] = 0
+        if self.configuration & Config.seat == 0:
+            action[self.Action.seat] = 0
+        if self.configuration & Config.smartvent == 0:
+            action[self.Action.smart_vent] = 0
+        if self.configuration & Config.windowheating == 0:
+            action[self.Action.window_heating] = 0
+        if self.configuration & Config.newairmode == 0:
+            action[self.Action.new_air_mode] = 0
 
     def _convert_action(self, action: np.ndarray):
         """given some action in the original box space, convert it to an
@@ -170,6 +199,7 @@ class DomusFullActEnv(DomusContEnv):
             action
         ), f"action {action} is not in the action_space {self.action_space}"
         action = self.act_tr.inverse_transform(action)
+        self._mask_action(action)
         rounded_action = np.around(action)
         iaction = np.zeros((len(self.InternalAction)))
         new_air_mode = rounded_action[self.Action.new_air_mode]
