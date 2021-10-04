@@ -47,7 +47,7 @@ def calc_sound_level(speed, power):
     Returns
     -------
 
-      estimated sound level in dB
+      tuple containing: estimated sound level in dB, driving sound, blower sound
 
     """
     ds_lo = 43.0

@@ -29,6 +29,7 @@ from domus_mlsim import (
     update_hvac_inputs,
 )
 
+from .acoustics import calc_sound_level
 from .minmax import MinMaxTransform
 
 COMFORT_WEIGHT = 0.523
@@ -388,6 +389,7 @@ class DomusEnv(gym.Env):
                 pre_out=h_u[HvacUt.ambient] - KELVIN,
                 body_state=self._body_state(b_x, i),
                 rh=b_x[DV1Xt.rhc] * 100,
+                sound=calc_sound_level(h_u[HvacUt.speed], h_u[HvacUt.blw_power]),
             )
             for i in self.configured_passengers
         ]
