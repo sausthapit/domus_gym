@@ -17,14 +17,14 @@ KMH_TO_MS = 1000 / 3600
 
 
 class Config(IntEnum):
-    radiant = 1
-    seat = 2
-    smartvent = 4
-    windowheating = 8
-    newairmode = 16
+    radiant = auto()
+    seat = auto()
+    smartvent = auto()
+    windowheating = auto()
+    newairmode = auto()
 
 
-CONFIG_ALL = sum([x.value for x in Config])
+CONFIG_ALL = set([x for x in Config])
 
 
 class DomusFullActEnv(DomusContEnv):
@@ -133,7 +133,7 @@ class DomusFullActEnv(DomusContEnv):
         Parameters
         ----------
 
-        configuration
+        configuration : set
 
           defaults to all options included
 
@@ -174,19 +174,23 @@ class DomusFullActEnv(DomusContEnv):
         self.action_space = spaces.Box(
             high=1, low=-1, shape=act_min.shape, dtype=np.float32
         )
-        self.configuration = configuration
+        self._make_mask(configuration)
+
+    def _make_mask(self, configuration):
+        self.mask = np.ones((len(self.Action),))
+        if Config.radiant not in configuration:
+            self.mask[self.Action.radiant_panel_1 : self.Action.radiant_panel_4 + 1] = 0
+        if Config.seat not in configuration:
+            self.mask[self.Action.seat] = 0
+        if Config.smartvent not in configuration:
+            self.mask[self.Action.smart_vent] = 0
+        if Config.windowheating not in configuration:
+            self.mask[self.Action.window_heating] = 0
+        if Config.newairmode not in configuration:
+            self.mask[self.Action.new_air_mode] = 0
 
     def _mask_action(self, action: np.ndarray):
-        if self.configuration & Config.radiant == 0:
-            action[self.Action.radiant_panel_1 : self.Action.radiant_panel_4] = 0
-        if self.configuration & Config.seat == 0:
-            action[self.Action.seat] = 0
-        if self.configuration & Config.smartvent == 0:
-            action[self.Action.smart_vent] = 0
-        if self.configuration & Config.windowheating == 0:
-            action[self.Action.window_heating] = 0
-        if self.configuration & Config.newairmode == 0:
-            action[self.Action.new_air_mode] = 0
+        return action * self.mask
 
     def _convert_action(self, action: np.ndarray):
         """given some action in the original box space, convert it to an
@@ -199,7 +203,7 @@ class DomusFullActEnv(DomusContEnv):
             action
         ), f"action {action} is not in the action_space {self.action_space}"
         action = self.act_tr.inverse_transform(action)
-        self._mask_action(action)
+        action = self._mask_action(action)
         rounded_action = np.around(action)
         iaction = np.zeros((len(self.InternalAction)))
         new_air_mode = rounded_action[self.Action.new_air_mode]
