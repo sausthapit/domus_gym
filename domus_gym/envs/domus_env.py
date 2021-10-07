@@ -389,7 +389,7 @@ class DomusEnv(gym.Env):
                 pre_out=h_u[HvacUt.ambient] - KELVIN,
                 body_state=self._body_state(b_x, i),
                 rh=b_x[DV1Xt.rhc] * 100,
-                sound=calc_sound_level(h_u[HvacUt.speed], h_u[HvacUt.blw_power]),
+                sound=calc_sound_level(h_u[HvacUt.speed], h_u[HvacUt.blw_power])[0],
             )
             for i in self.configured_passengers
         ]
