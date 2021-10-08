@@ -70,8 +70,38 @@ def test_smart_vent():
 def test_convert_action():
     env = DomusFullEnv(use_random_scenario=True)
     env.seed(1)
-    for _ in range(100):
+    for _ in range(10):
         _ = env._convert_action(env.action_space.sample())
+
+    # check that values are rounded where required
+    orig = np.array([0, 1, 1, 1, 1, 0, 0, 1, 300, 0, 0, 1, 1, 5000])
+
+    variant = np.array(
+        [
+            0.1,  # new air mode
+            0.8,  # rad panel
+            0.8,  # .
+            0.8,  # .
+            0.8,  # .
+            0.2,  # seat
+            0.3,  # smart vent
+            0.6,  # window heating
+            300,
+            0,
+            0,
+            0.8,  # recirc
+            0.8,  # dist defrost
+            5000,
+        ]
+    )
+    a = env.act_tr.transform(variant)
+    assert env.action_space.contains(a)
+
+    print(env._convert_action(a))
+    print(env._convert_action(env.act_tr.transform(orig)))
+    assert env._convert_action(a) == approx(
+        env._convert_action(env.act_tr.transform(orig))
+    )
 
 
 def test_config_newair():

@@ -227,14 +227,10 @@ class DomusFullActEnv(DomusContEnv):
                 self.InternalAction.radiant_panel_4,
                 self.InternalAction.smart_vent_diffuse_low,
                 self.InternalAction.window_heating,
-                self.InternalAction.blw_power,
-                self.InternalAction.cmp_power,
-                self.InternalAction.fan_power,
                 self.InternalAction.recirc,
                 self.InternalAction.dist_defrost,
-                self.InternalAction.hv_heater,
             ]
-        ] = action[
+        ] = rounded_action[
             [
                 self.Action.radiant_panel_1,
                 self.Action.radiant_panel_2,
@@ -242,11 +238,23 @@ class DomusFullActEnv(DomusContEnv):
                 self.Action.radiant_panel_4,
                 self.Action.smart_vent,
                 self.Action.window_heating,
+                self.Action.recirc,
+                self.Action.dist_defrost,
+            ]
+        ]
+
+        iaction[
+            [
+                self.InternalAction.blw_power,
+                self.InternalAction.cmp_power,
+                self.InternalAction.fan_power,
+                self.InternalAction.hv_heater,
+            ]
+        ] = action[
+            [
                 self.Action.blw_power,
                 self.Action.cmp_power,
                 self.Action.fan_power,
-                self.Action.recirc,
-                self.Action.dist_defrost,
                 self.Action.hv_heater,
             ]
         ]
