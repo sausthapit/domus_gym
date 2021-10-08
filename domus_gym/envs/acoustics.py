@@ -14,6 +14,7 @@ Date
 """
 
 import numpy as np
+import scipy.interpolate as sint
 
 # speed ... vehicle speed in km per hour
 # power ... power consumption of the HVAC blower in watts
@@ -22,7 +23,7 @@ import numpy as np
 
 def PaToDB(p):
     p0 = 2.0e-5
-    return 10.0 * np.log10(p * p / p0 / p0)
+    return max(0.0, 10.0 * np.log10((p * p + 1e-18) / p0 / p0))
 
 
 def dBtoPa(dB):
@@ -50,26 +51,25 @@ def calc_sound_level(speed, power):
       tuple containing: estimated sound level in dB, driving sound, blower sound
 
     """
-    ds_lo = 43.0
-    ds_lo_Pa = dBtoPa(ds_lo)
-    ds_lo_speed = 50.0
-    ds_hi = 75.0
-    ds_hi_Pa = dBtoPa(ds_hi)
-    ds_hi_speed = 105.0
-    drivingSound_Pa = ds_lo_Pa + (ds_hi_Pa - ds_lo_Pa) * (speed - ds_lo_speed) / (
-        ds_hi_speed - ds_lo_speed
-    )
-    drivingSound = PaToDB(drivingSound_Pa)
+    coeff = 4.85
+    drivingSound = coeff * np.sqrt(speed)
+    drivingSound_Pa = dBtoPa(drivingSound)
 
-    bs_lo = 43.0
-    bs_lo_Pa = dBtoPa(bs_lo)
-    bs_lo_power = 50.0
-    bs_hi = 75.0
-    bs_hi_Pa = dBtoPa(bs_hi)
-    bs_hi_power = 105.0
-    blowerSound_Pa = bs_lo_Pa + (bs_hi_Pa - bs_lo_Pa) * (power - bs_lo_power) / (
-        bs_hi_power - bs_lo_power
-    )
+    blower_vdot_hi = 344.0  # level 12 of 12
+    blower_power_hi = 170.0  # Watts estimated max. power consumption from 13.5V*12.5A
+    blower_SPL_hi = 47.0
+    blower_SP_hi_Pa = dBtoPa(blower_SPL_hi)
+    blower_vdot_lo = 222.0  # level 8 of 12
+    blower_power_lo = (
+        blower_power_hi * blower_vdot_lo / blower_vdot_hi
+    )  # assumption power approx. linear to vdot, from data in DNTS HVAC Performance Report
+    blower_SPL_lo = 23.0
+    blower_SP_lo_Pa = dBtoPa(blower_SPL_lo)
+
+    powersteps = np.array([0.0, blower_power_lo, blower_power_hi])
+    soundpressure = np.array([0.0, blower_SP_lo_Pa, blower_SP_hi_Pa])
+    f = sint.interp1d(powersteps, soundpressure, fill_value="extrapolate")
+    blowerSound_Pa = f(power)
     blowerSound = PaToDB(blowerSound_Pa)
 
     soundLevel = PaToDB(drivingSound_Pa + blowerSound_Pa)
