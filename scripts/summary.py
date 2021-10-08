@@ -81,7 +81,6 @@ if __name__ == "__main__":
         "outputfile",
         help="csv to write results to",
         type=argparse.FileType("w"),
-        required=True,
     )
 
     args = parser.parse_args()
@@ -97,4 +96,4 @@ if __name__ == "__main__":
 
     rces = ["reward", "comfort", "energy", "safety"]
     avgdf = pd.DataFrame(averages, index=range(1, N_UCS + 1), columns=rces)
-    avgdf.to_csv(args.outfile)
+    avgdf.to_csv(args.outputfile)
