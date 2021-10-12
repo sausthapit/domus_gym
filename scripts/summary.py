@@ -74,7 +74,11 @@ if __name__ == "__main__":
     parser.add_argument("-a", "--algo", help="Algorithm (e.g., ppo)", type=str)
     parser.add_argument("-e", "--env", help="Environment", type=str)
     parser.add_argument(
-        "-r", "--run-number", help="Suffix on environment for run", type=str
+        "-r",
+        "--run-number",
+        help="Suffix on environment for run",
+        type=str,
+        nargs="+",
     )
     parser.add_argument("-f", "--exp-folder", help="Folder", type=str)
     parser.add_argument(
@@ -87,13 +91,20 @@ if __name__ == "__main__":
 
     args.algo = args.algo.upper()
 
-    averages = main(
-        envname=args.env,
-        alg=args.algo,
-        log_path=args.exp_folder,
-        run_number=args.run_number,
-    )
+    all_runs = []
+    for run in args.run_number:
+        averages = main(
+            envname=args.env,
+            alg=args.algo,
+            log_path=args.exp_folder,
+            run_number=run,
+        )
 
-    rces = ["reward", "comfort", "energy", "safety"]
-    avgdf = pd.DataFrame(averages, index=range(1, N_UCS + 1), columns=rces)
-    avgdf.to_csv(args.outputfile)
+        rces = ["reward", "comfort", "energy", "safety"]
+        avgdf = pd.DataFrame(averages, index=range(1, N_UCS + 1), columns=rces)
+        avgdf = avgdf.assign(run=run)
+        all_runs.append(avgdf)
+
+    alldf = pd.concat(all_runs)
+    alldf.to_csv(args.outputfile)
+    print(alldf.groupby("run").aggregate(["mean", "std"]))

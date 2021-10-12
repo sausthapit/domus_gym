@@ -59,7 +59,8 @@ def calc_sound_level(speed, power):
     blower_power_hi = 170.0  # Watts estimated max. power consumption from 13.5V*12.5A
     blower_SPL_hi = 47.0
     blower_SP_hi_Pa = dBtoPa(blower_SPL_hi)
-    blower_vdot_lo = 222.0  # level 8 of 12
+    # blower_vdot_lo = 222.0 # level 8 of 12
+    blower_vdot_lo = 169.0  # level 6 of 12
     blower_power_lo = (
         blower_power_hi * blower_vdot_lo / blower_vdot_hi
     )  # assumption power approx. linear to vdot, from data in DNTS HVAC Performance Report

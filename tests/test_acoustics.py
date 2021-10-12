@@ -13,6 +13,6 @@ def test_calc_sound_level():
 
     assert calc_sound_level(0, 0) == approx((0, 0, 0), abs=1e-7)
 
-    assert calc_sound_level(50, 110) == approx((36, 35, 23), rel=0.05)
+    assert calc_sound_level(52, 83.5) == approx((36.9, 35, 23), rel=0.05)
 
-    assert calc_sound_level(70, 170) == approx((50, 40, 47), rel=0.05)
+    assert calc_sound_level(68, 170) == approx((50.2, 40, 47), rel=0.05)
