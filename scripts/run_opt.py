@@ -1,15 +1,16 @@
 import argparse
 from pathlib import Path
 
-import domus_gym
 import gym
-from domus_gym.envs import Config
-from domus_mlsim import load_scenarios
 from skopt import dump, gp_minimize, load
 from skopt.callbacks import CheckpointSaver
 from skopt.space import Integer
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+
+import domus_gym
+from domus_gym.envs import Config
+from domus_mlsim import load_scenarios
 
 N_UCS = 28
 
@@ -19,9 +20,9 @@ class Loss:
         self, envname: str, alg: str, log_path: str, run_number: str, timesteps=10000
     ):
         self.log_path = Path(log_path)
-        assert log_path.exists()
+        assert self.log_path.exists()
 
-        ppo_path = log_path / alg.lower() / (envname + "_" + run_number)
+        ppo_path = self.log_path / alg.lower() / (envname + "_" + run_number)
         assert ppo_path.exists()
         self.envname = envname
         self.model_file = ppo_path / (envname + ".zip")
@@ -152,7 +153,7 @@ def main():
         help="where to write checkpoint to or take checkpoint from",
         type=str,
     )
-    parser.add_argument("-x", "--restart", action="store_true", type=bool)
+    parser.add_argument("-x", "--restart", action="store_true")
 
     parser.add_argument(
         "outputfile",
@@ -165,10 +166,14 @@ def main():
 
     optimise(
         args.outputfile,
-        args.checkpointfile,
+        args.checkpoint,
         env=args.env,
         algo=args.algo,
         log_path=args.exp_folder,
         run_number=args.run_number,
         restart=args.restart,
     )
+
+
+if __name__ == "__main__":
+    main()
