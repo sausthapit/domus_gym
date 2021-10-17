@@ -145,6 +145,10 @@ def main():
         "-r", "--run-number", help="Suffix on environment for run", type=str
     )
     parser.add_argument(
+        "-t", "--timesteps", help="Number of timesteps to run", type=int
+    )
+
+    parser.add_argument(
         "-f", "--exp-folder", help="Folder containing learned model", type=str
     )
     parser.add_argument(
@@ -172,6 +176,7 @@ def main():
         log_path=args.exp_folder,
         run_number=args.run_number,
         restart=args.restart,
+        timesteps=args.timesteps,
     )
 
 
