@@ -29,9 +29,12 @@ class Loss:
         self.vecnormalize = ppo_path / envname / "vecnormalize.pkl"
         self.sc = load_scenarios()
         self.timesteps = timesteps
+        self.cache = {}
 
     def __call__(self, hyperparams):
 
+        if hyperparams in self.cache:
+            return self.cache[hyperparams]
         configset = set([cfg for cfg, p in zip(Config, hyperparams) if p == 1])
 
         env = DummyVecEnv(
@@ -44,7 +47,10 @@ class Loss:
         env = VecNormalize.load(self.vecnormalize, env)
         model = PPO.load(self.model_file, env=env)
         revised_model = model.learn(total_timesteps=self.timesteps)
-        return self.summarise(revised_model)
+        # need to return negative (since this is loss not reward)
+        loss = -self.summarise(revised_model)
+        self.cache[hyperparams] = loss
+        return loss
 
     def summarise(self, model):
 
