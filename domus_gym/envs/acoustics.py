@@ -56,7 +56,7 @@ def calc_sound_level(speed, power):
     drivingSound_Pa = dBtoPa(drivingSound)
 
     blower_vdot_hi = 344.0  # level 12 of 12
-    blower_power_hi = 170.0  # Watts estimated max. power consumption from 13.5V*12.5A
+    blower_power_hi = 400.0  # Watts estimated from CRF simulation data
     blower_SPL_hi = 47.0
     blower_SP_hi_Pa = dBtoPa(blower_SPL_hi)
     # blower_vdot_lo = 222.0 # level 8 of 12
