@@ -33,8 +33,8 @@ class Loss:
 
     def __call__(self, hyperparams):
 
-        if hyperparams in self.cache:
-            return self.cache[hyperparams]
+        if str(hyperparams) in self.cache:
+            return self.cache[str(hyperparams)]
         configset = set([cfg for cfg, p in zip(Config, hyperparams) if p == 1])
 
         env = DummyVecEnv(
@@ -49,7 +49,7 @@ class Loss:
         revised_model = model.learn(total_timesteps=self.timesteps)
         # need to return negative (since this is loss not reward)
         loss = -self.summarise(revised_model)
-        self.cache[hyperparams] = loss
+        self.cache[str(hyperparams)] = loss
         return loss
 
     def summarise(self, model):
