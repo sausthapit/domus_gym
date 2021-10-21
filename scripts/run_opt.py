@@ -45,6 +45,8 @@ class Loss:
             ]
         )
         env = VecNormalize.load(self.vecnormalize, env)
+        env.training = True
+        env.norm_reward = False
         model = PPO.load(self.model_file, env=env)
         revised_model = model.learn(total_timesteps=self.timesteps)
         # need to return negative (since this is loss not reward)
@@ -66,7 +68,8 @@ class Loss:
                 ]
             )
             env = VecNormalize.load(self.vecnormalize, env)
-
+            env.training = False
+            env.norm_reward = False
             obs = env.reset()
 
             done = False

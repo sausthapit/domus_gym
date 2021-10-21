@@ -2,3 +2,4 @@ __pycache__/
 /.coverage
 /domus_gym.egg-info/
 /htmlcov/
+/.ipynb_checkpoints/
