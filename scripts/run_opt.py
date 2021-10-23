@@ -15,6 +15,8 @@ from domus_mlsim import load_scenarios
 
 N_UCS = 28
 
+model_cache = {}
+
 
 class Loss:
     def __init__(
@@ -30,7 +32,6 @@ class Loss:
         self.vecnormalize = ppo_path / envname / "vecnormalize.pkl"
         self.sc = load_scenarios()
         self.timesteps = timesteps
-        self.cache = {}
 
     def __call__(self, hyperparams):
 
@@ -45,9 +46,9 @@ class Loss:
         env = VecNormalize.load(self.vecnormalize, env)
         env.training = True
         env.norm_reward = False
-        if str(hyperparams) in self.cache:
+        if str(hyperparams) in model_cache:
             # use model from cache
-            model = self.cache[str(hyperparams)]
+            model = model_cache[str(hyperparams)]
         else:
             model = PPO.load(self.model_file, env=env)
         try:
@@ -56,7 +57,7 @@ class Loss:
             model.env.close()
         # need to return negative (since this is loss not reward)
         loss = -self.summarise(model)
-        self.cache[str(hyperparams)] = model
+        model_cache[str(hyperparams)] = model
         return loss
 
     def summarise(self, model):
