@@ -1,4 +1,5 @@
 import argparse
+import warnings
 from pathlib import Path
 
 import gym
@@ -33,10 +34,7 @@ class Loss:
 
     def __call__(self, hyperparams):
 
-        if str(hyperparams) in self.cache:
-            return self.cache[str(hyperparams)]
         configset = set([cfg for cfg, p in zip(Config, hyperparams) if p == 1])
-
         env = DummyVecEnv(
             [
                 lambda: gym.make(
@@ -47,11 +45,18 @@ class Loss:
         env = VecNormalize.load(self.vecnormalize, env)
         env.training = True
         env.norm_reward = False
-        model = PPO.load(self.model_file, env=env)
-        revised_model = model.learn(total_timesteps=self.timesteps)
+        if str(hyperparams) in self.cache:
+            # use model from cache
+            model = self.cache[str(hyperparams)]
+        else:
+            model = PPO.load(self.model_file, env=env)
+        try:
+            model.learn(total_timesteps=self.timesteps)
+        finally:
+            model.env.close()
         # need to return negative (since this is loss not reward)
-        loss = -self.summarise(revised_model)
-        self.cache[str(hyperparams)] = loss
+        loss = -self.summarise(model)
+        self.cache[str(hyperparams)] = model
         return loss
 
     def summarise(self, model):
@@ -190,4 +195,5 @@ def main():
 
 
 if __name__ == "__main__":
+    warnings.simplefilter("ignore")
     main()
