@@ -8,6 +8,7 @@ from skopt.callbacks import CheckpointSaver
 from skopt.space import Integer
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
+from utils.exp_manager import ExperimentManager
 
 import domus_gym
 from domus_gym.envs import Config
@@ -27,6 +28,7 @@ class Loss:
 
         ppo_path = self.log_path / alg.lower() / (envname + "_" + run_number)
         assert ppo_path.exists()
+        self.alg = alg
         self.envname = envname
         self.model_file = ppo_path / (envname + ".zip")
         self.vecnormalize = ppo_path / envname / "vecnormalize.pkl"
@@ -36,6 +38,24 @@ class Loss:
     def __call__(self, hyperparams):
 
         configset = set([cfg for cfg, p in zip(Config, hyperparams) if p == 1])
+        exp_manager = ExperimentManager(
+            args=argparse.Namespace(),
+            algo=self.alg,
+            env_id=self.envname,
+            log_folder=self.log_path,
+            log_interval=-1,
+            n_timesteps=10000,
+            env_kwargs={"configuration": configset, "use_random_scenario": True},
+            trained_agent=self.model_file,
+        )
+
+        # Prepare experiment and launch hyperparameter optimization if needed
+        model = exp_manager.setup_experiment()
+
+        # Normal training
+        assert model is not None:
+        exp_manager.learn(model)
+
         env = DummyVecEnv(
             [
                 lambda: gym.make(
@@ -46,36 +66,39 @@ class Loss:
         env = VecNormalize.load(self.vecnormalize, env)
         env.training = True
         env.norm_reward = False
-        if str(hyperparams) in model_cache:
-            # use model from cache
-            model = model_cache[str(hyperparams)]
-        else:
-            model = PPO.load(self.model_file, env=env)
-        try:
-            model.learn(total_timesteps=self.timesteps)
-        finally:
-            model.env.close()
+        # if str(hyperparams) in model_cache:
+        #     # use model from cache
+        #     model = model_cache[str(hyperparams)]
+        # else:
+        #     model = PPO.load(self.model_file, env=env)
+        # try:
+        #     model.learn(total_timesteps=self.timesteps)
+        # finally:
+        #     model.env.close()
         # need to return negative (since this is loss not reward)
         loss = -self.summarise(model)
-        model_cache[str(hyperparams)] = model
+        # model_cache[str(hyperparams)] = model
         return loss
 
     def summarise(self, model):
 
         total_sum = 0
+        env = DummyVecEnv(
+            [
+                lambda: gym.make(
+                    self.envname,
+                    use_scenario=1,
+                    fixed_episode_length=self.sc.time[1] * 60,
+                )
+            ]
+        )
+        env = VecNormalize.load(self.vecnormalize, env)
+        env.training = False
+        env.norm_reward = False
         for i in range(1, N_UCS + 1):
-            env = DummyVecEnv(
-                [
-                    lambda: gym.make(
-                        self.envname,
-                        use_scenario=i,
-                        fixed_episode_length=self.sc.time[i] * 60,
-                    )
-                ]
-            )
-            env = VecNormalize.load(self.vecnormalize, env)
-            env.training = False
-            env.norm_reward = False
+            env.set_attr("use_scenario", i)
+            env.set_attr("fixed_episode_length", sc.time[i] * 60)
+
             obs = env.reset()
 
             done = False

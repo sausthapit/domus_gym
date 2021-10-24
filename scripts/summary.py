@@ -3,8 +3,6 @@ from pathlib import Path
 import gym
 import numpy as np
 import pandas as pd
-import seaborn as sns
-from IPython.display import set_matplotlib_formats
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
@@ -23,24 +21,20 @@ def main(envname: str, alg: str, log_path: str, run_number: str) -> np.ndarray:
     model_file = ppo_path / (envname + ".zip")
     vecnormalize = ppo_path / envname / "vecnormalize.pkl"
 
-    set_matplotlib_formats("svg")
-
-    sns.set_theme()
-
     sc = load_scenarios()
     averages = np.zeros((N_UCS, 4))
+    env = DummyVecEnv(
+        [
+            lambda: gym.make(
+                envname, use_scenario=1, fixed_episode_length=sc.time[1] * 60
+            )
+        ]
+    )
+    env = VecNormalize.load(vecnormalize, env)
+    model = PPO.load(model_file, env=env)
     for i in range(1, N_UCS + 1):
-
-        env = DummyVecEnv(
-            [
-                lambda: gym.make(
-                    envname, use_scenario=i, fixed_episode_length=sc.time[i] * 60
-                )
-            ]
-        )
-        env = VecNormalize.load(vecnormalize, env)
-
-        model = PPO.load(model_file, env=env)
+        env.set_attr("use_scenario", i)
+        env.set_attr("fixed_episode_length", sc.time[i] * 60)
 
         obs = env.reset()
 
