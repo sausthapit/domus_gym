@@ -31,6 +31,7 @@ def main(envname: str, alg: str, log_path: str, run_number: str) -> np.ndarray:
         ]
     )
     env = VecNormalize.load(vecnormalize, env)
+    env.norm_reward = False
     model = PPO.load(model_file, env=env)
     for i in range(1, N_UCS + 1):
         env.set_attr("use_scenario", i)
