@@ -133,7 +133,7 @@ class DomusFullActEnv(DomusContEnv):
         Parameters
         ----------
 
-        configuration : set
+        configuration : set or string of 1s and 0s
 
           defaults to all options included
 
@@ -177,6 +177,10 @@ class DomusFullActEnv(DomusContEnv):
         self._make_mask(configuration)
 
     def _make_mask(self, configuration):
+        if isinstance(configuration, str):
+            configuration = set(
+                [cfg for cfg, p in zip(Config, configuration) if p == "1"]
+            )
         self.mask = np.ones((len(self.Action),))
         if Config.radiant not in configuration:
             self.mask[self.Action.radiant_panel_1 : self.Action.radiant_panel_4 + 1] = 0

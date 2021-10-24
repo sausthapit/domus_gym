@@ -124,7 +124,7 @@ def optimise(
         result = gp_minimize(
             loss_fn,
             dimensions=search_space,
-            noise=1e-10,
+            # noise=1e-10,
             acq_func="EI",
             n_calls=n_calls,
             n_jobs=-1,
@@ -137,7 +137,7 @@ def optimise(
         result = gp_minimize(
             loss_fn,
             dimensions=search_space,
-            noise=1e-10,
+            # noise=1e-10,
             acq_func="EI",
             n_calls=n_calls,
             n_jobs=-1,
