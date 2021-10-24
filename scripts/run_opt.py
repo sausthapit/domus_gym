@@ -46,14 +46,14 @@ class Loss:
             log_interval=-1,
             n_timesteps=10000,
             env_kwargs={"configuration": configset, "use_random_scenario": True},
-            trained_agent=self.model_file,
+            trained_agent=str(self.model_file),
         )
 
         # Prepare experiment and launch hyperparameter optimization if needed
         model = exp_manager.setup_experiment()
 
         # Normal training
-        assert model is not None:
+        assert model is not None
         exp_manager.learn(model)
 
         env = DummyVecEnv(
@@ -95,9 +95,10 @@ class Loss:
         env = VecNormalize.load(self.vecnormalize, env)
         env.training = False
         env.norm_reward = False
+        model.env = env
         for i in range(1, N_UCS + 1):
             env.set_attr("use_scenario", i)
-            env.set_attr("fixed_episode_length", sc.time[i] * 60)
+            env.set_attr("fixed_episode_length", self.sc.time[i] * 60)
 
             obs = env.reset()
 
@@ -204,7 +205,7 @@ def main():
     )
 
     args = parser.parse_args()
-    args.algo = args.algo.upper()
+    #    args.algo = args.algo.upper()
 
     optimise(
         args.outputfile,
