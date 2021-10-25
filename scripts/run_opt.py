@@ -8,10 +8,9 @@ from skopt.callbacks import CheckpointSaver
 from skopt.space import Integer
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
-from utils.exp_manager import ExperimentManager
 
 import domus_gym
-from domus_gym.envs import Config
+from domus_gym.envs import ENERGY_MAX, ENERGY_MIN, ENERGY_WEIGHT, Config, consumption
 from domus_mlsim import load_scenarios
 
 N_UCS = 28
@@ -27,7 +26,7 @@ class Loss:
         assert self.log_path.exists()
 
         ppo_path = self.log_path / alg.lower() / (envname + "_" + run_number)
-        assert ppo_path.exists()
+        assert ppo_path.exists(), f"path {ppo_path} doesn't exist"
         self.alg = alg
         self.envname = envname
         self.model_file = ppo_path / (envname + ".zip")
@@ -38,24 +37,6 @@ class Loss:
     def __call__(self, hyperparams):
 
         configset = set([cfg for cfg, p in zip(Config, hyperparams) if p == 1])
-        exp_manager = ExperimentManager(
-            args=argparse.Namespace(),
-            algo=self.alg,
-            env_id=self.envname,
-            log_folder=self.log_path,
-            log_interval=-1,
-            n_timesteps=10000,
-            env_kwargs={"configuration": configset, "use_random_scenario": True},
-            trained_agent=str(self.model_file),
-        )
-
-        # Prepare experiment and launch hyperparameter optimization if needed
-        model = exp_manager.setup_experiment()
-
-        # Normal training
-        assert model is not None
-        exp_manager.learn(model)
-
         env = DummyVecEnv(
             [
                 lambda: gym.make(
@@ -65,20 +46,40 @@ class Loss:
         )
         env = VecNormalize.load(self.vecnormalize, env)
         env.training = True
-        env.norm_reward = False
-        # if str(hyperparams) in model_cache:
-        #     # use model from cache
-        #     model = model_cache[str(hyperparams)]
-        # else:
-        #     model = PPO.load(self.model_file, env=env)
-        # try:
-        #     model.learn(total_timesteps=self.timesteps)
-        # finally:
-        #     model.env.close()
+        if str(hyperparams) in model_cache:
+            # use model from cache
+            model = model_cache[str(hyperparams)]
+        else:
+            model = PPO.load(self.model_file, env=env)
+        try:
+            model.learn(total_timesteps=self.timesteps)
+        finally:
+            model.env.close()
         # need to return negative (since this is loss not reward)
         loss = -self.summarise(model)
-        # model_cache[str(hyperparams)] = model
+
+        # calculate loss associated with configuration
+
+        loss += self.configuration_loss(configset)
+        model_cache[str(hyperparams)] = model
         return loss
+
+    def configuration_loss(self, configset):
+        mass = 0
+        if Config.radiant in configset:
+            mass += 1.5
+
+        if Config.seat in configset:
+            mass += 1.1
+
+        p = sum(
+            [
+                consumption.power_delta(self.sc.car_speed[i], 1300, mass)
+                * self.sc.time[i]
+                for i in range(1, 29)
+            ]
+        ) / sum(self.sc.time)
+        return p / (ENERGY_MAX - ENERGY_MIN) * ENERGY_WEIGHT
 
     def summarise(self, model):
 
