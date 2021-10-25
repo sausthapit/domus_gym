@@ -4,6 +4,8 @@ consumption
 
 Estimate power consumption due to weight of vehicle and speed of travel.
 
+Revised to use module level variable for singleton as per https://docs.python.org/3/faq/programming.html#how-do-i-share-global-variables-across-modules
+
 Author
 ------
 Sebastian Moeller
@@ -18,30 +20,34 @@ import pkg_resources
 import scipy.interpolate as sint
 
 
-class Consumption:
-    def __init__(
-        self,
-        filename=pkg_resources.resource_filename(__name__, "consumption.pickle"),
-    ):
-        with open(filename, "rb") as f:
-            data = pickle.load(f)
-        cons = data["consumption_kwh_100km"]
-        speeds = data["speeds_kmh"]
-        masses = data["masses_kg"]
-        self.sc = sint.interp2d(speeds, masses, cons)
+def _load_sc():
+    filename = pkg_resources.resource_filename(__name__, "consumption.pickle")
+    with open(filename, "rb") as f:
+        data = pickle.load(f)
+    cons = data["consumption_kwh_100km"]
+    speeds = data["speeds_kmh"]
+    masses = data["masses_kg"]
+    return sint.interp2d(speeds, masses, cons)
 
-    def spec_consumption_delta(self, speed, mass, deltaMass):
-        c1 = self.sc(speed, mass)[0]
-        c2 = self.sc(speed, mass + deltaMass)[0]
-        return c2 - c1
 
-    def spec_consumption(self, speed, mass):  # Specific Consumption
-        return self.sc(speed, mass)[0]
+sc = _load_sc()
 
-    def power(self, speed, mass):
-        return self.sc(speed, mass)[0] * speed * 10.0
 
-    def power_delta(self, speed, mass, deltaMass):
-        c1 = self.sc(speed, mass)[0]
-        c2 = self.sc(speed, mass + deltaMass)[0]
-        return (c2 - c1) * speed * 10.0
+def spec_consumption_delta(speed, mass, deltaMass):
+    c1 = sc(speed, mass)[0]
+    c2 = sc(speed, mass + deltaMass)[0]
+    return c2 - c1
+
+
+def spec_consumption(speed, mass):  # Specific Consumption
+    return sc(speed, mass)[0]
+
+
+def power(speed, mass):
+    return sc(speed, mass)[0] * speed * 10.0
+
+
+def power_delta(speed, mass, deltaMass):
+    c1 = sc(speed, mass)[0]
+    c2 = sc(speed, mass + deltaMass)[0]
+    return (c2 - c1) * speed * 10.0
