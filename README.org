@@ -62,11 +62,25 @@ DomusCont-v0:
   ent_coef: 0.0
   learning_rate: 2.5e-4
   clip_range: 0.2
+
+DomusFullAct-v0:
+  normalize: true
+  n_envs: 8
+  n_timesteps: !!float 2e7
+  policy: 'MlpPolicy'
+  n_steps: 2048
+  batch_size: 64
+  gae_lambda: 0.95
+  gamma: 0.99
+  n_epochs: 10
+  ent_coef: 0.0
+  learning_rate: 2.5e-4
+  clip_range: 0.2
 EOF
 #+END_SRC
 
-Train the agent
+Train the agent (this will take around 24 hours on a fast machine).
 #+BEGIN_SRC sh
-python train.py --algo ppo --env DomusCont-v0 --gym-packages domus_gym --env-kwargs use_random_scenario:True --verbose 1
+python train.py --algo ppo --env DomusFullAct-v0 --gym-packages domus_gym --env-kwargs use_random_scenario:True --verbose 1
 
 #+END_SRC
