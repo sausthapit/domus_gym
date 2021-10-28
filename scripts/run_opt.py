@@ -131,7 +131,6 @@ def optimise(
     search_space = [
         Integer(0, 1),  # radiant
         Integer(0, 1),  # seat
-        Integer(0, 1),  # smartvent
         Integer(0, 1),  # windowheating
         Integer(0, 1),  # newairmode
     ]

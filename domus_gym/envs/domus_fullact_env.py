@@ -19,7 +19,6 @@ KMH_TO_MS = 1000 / 3600
 class Config(IntEnum):
     radiant = auto()
     seat = auto()
-    smartvent = auto()
     windowheating = auto()
     newairmode = auto()
 
@@ -39,7 +38,6 @@ class DomusFullActEnv(DomusContEnv):
             "radiant_panel_3",
             "radiant_panel_4",
             "seat",
-            "smart_vent",
             "window_heating",
             "blw_power",
             "cmp_power",
@@ -70,7 +68,6 @@ class DomusFullActEnv(DomusContEnv):
             "radiant_panel_4",
             "seat_off",
             "seat_ventilate",
-            "smart_vent_diffuse_low",
             "window_heating",
             "blw_power",
             "cmp_power",
@@ -110,15 +107,6 @@ class DomusFullActEnv(DomusContEnv):
         start=0,
     )
 
-    SmartVent = IntEnum(
-        "SmartVent",
-        [
-            "default",
-            "diffuse_low",
-        ],
-        start=0,
-    )
-
     def __init__(
         self,
         configuration=CONFIG_ALL,
@@ -137,9 +125,9 @@ class DomusFullActEnv(DomusContEnv):
 
           defaults to all options included
 
-          use a sum of Config enums to select a particular
-          configuration. e.g., to turn on just the seat and smartvent,
-          use `configuration=Config.seat + Config.smartvent'
+          use a set of Config enums to select a particular
+          configuration. e.g., to turn on just the seat
+          use `configuration=set([Config.seat])'
 
         """
         super(DomusFullActEnv, self).__init__(**kwargs)
@@ -147,7 +135,7 @@ class DomusFullActEnv(DomusContEnv):
             [
                 0,
             ]
-            * 8
+            * 7
             + [
                 5 * BLOWER_MULT + BLOWER_ADD,
             ]
@@ -160,7 +148,6 @@ class DomusFullActEnv(DomusContEnv):
             + [1] * 4
             + [
                 len(self.Seat),
-                len(self.SmartVent),
                 1,
                 18 * BLOWER_MULT + BLOWER_ADD,
                 3000,
@@ -186,8 +173,6 @@ class DomusFullActEnv(DomusContEnv):
             self.mask[self.Action.radiant_panel_1 : self.Action.radiant_panel_4 + 1] = 0
         if Config.seat not in configuration:
             self.mask[self.Action.seat] = 0
-        if Config.smartvent not in configuration:
-            self.mask[self.Action.smart_vent] = 0
         if Config.windowheating not in configuration:
             self.mask[self.Action.window_heating] = 0
         if Config.newairmode not in configuration:
@@ -229,7 +214,6 @@ class DomusFullActEnv(DomusContEnv):
                 self.InternalAction.radiant_panel_2,
                 self.InternalAction.radiant_panel_3,
                 self.InternalAction.radiant_panel_4,
-                self.InternalAction.smart_vent_diffuse_low,
                 self.InternalAction.window_heating,
                 self.InternalAction.recirc,
                 self.InternalAction.dist_defrost,
@@ -240,7 +224,6 @@ class DomusFullActEnv(DomusContEnv):
                 self.Action.radiant_panel_2,
                 self.Action.radiant_panel_3,
                 self.Action.radiant_panel_4,
-                self.Action.smart_vent,
                 self.Action.window_heating,
                 self.Action.recirc,
                 self.Action.dist_defrost,
@@ -316,7 +299,6 @@ class DomusFullActEnv(DomusContEnv):
                 DV1Ut.radiant_panel_4,
                 DV1Ut.seat_off,
                 DV1Ut.seat_ventilate,
-                DV1Ut.smart_vent_diffuse_low,
                 DV1Ut.window_heating,
             ]
         ] = int_action[
@@ -339,7 +321,6 @@ class DomusFullActEnv(DomusContEnv):
                 self.InternalAction.radiant_panel_4,
                 self.InternalAction.seat_off,
                 self.InternalAction.seat_ventilate,
-                self.InternalAction.smart_vent_diffuse_low,
                 self.InternalAction.window_heating,
             ]
         ]
