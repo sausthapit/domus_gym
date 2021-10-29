@@ -60,3 +60,14 @@ def test_consumption():
 
     cons6 = consumption.spec_consumption(speed6, mass6)  # -- > 15.421 kWh/100km
     assert cons6 == approx(15.421, abs=1e-3)
+
+    speed = 80
+    mass = (
+        1355 + 2 * 75
+    )  # two passengers without additional components (empty fuel tank)
+
+    comfortPower = 3000  # watts
+
+    assert consumption.max_range(speed, mass, comfortPower) == approx(
+        100.30194763010108
+    )

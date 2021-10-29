@@ -43,16 +43,16 @@ def spec_consumption(speed, mass):  # Specific Consumption kWh/100km
     return sc(speed, mass)[0]
 
 
-def power(speed, mass): # watts
+def power(speed, mass):  # watts
     return sc(speed, mass)[0] * speed * 10.0
 
 
-def power_delta(speed, mass, deltaMass): # watts
+def power_delta(speed, mass, deltaMass):  # watts
     c1 = sc(speed, mass)[0]
     c2 = sc(speed, mass + deltaMass)[0]
     return (c2 - c1) * speed * 10.0
 
-    
-def maxRange(self, speed, mass, comfortPower): # maximum range km, comfortPower in W
-    power = comfortPower + self.power(speed, mass) # W
-    return speed*24.0*1000.0/power
+
+def max_range(speed, mass, comfortPower):  # maximum range km, comfortPower in W
+    p = comfortPower + power(speed, mass)  # W
+    return speed * 24.0 * 1000.0 / p
