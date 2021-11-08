@@ -143,7 +143,6 @@ class DomusDv0ContEnv(DomusContEnv):
             self.car_speed / 100 * 27.778,
         ]
         update_dv0_inputs(self.b_u, self.h_x, c_x)
-        print(self.b_u)
         _, self.b_x = self.dv0_sim.step(self.b_u)
 
     def _make_cabin_state(self):
