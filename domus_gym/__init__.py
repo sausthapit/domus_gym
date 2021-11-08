@@ -19,3 +19,8 @@ register(
     id="DomusFullAct-v0",
     entry_point="domus_gym.envs:DomusFullActEnv",
 )
+
+register(
+    id="DomusDv0Cont-v0",
+    entry_point="domus_gym.envs:DomusDv0ContEnv",
+)
