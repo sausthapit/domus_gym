@@ -23,7 +23,7 @@ class DomusContEnv(DomusEnv):
         This modifies DomusEnv by making the action_space continuous
 
         """
-        super(DomusContEnv, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         act_min = np.array(
             [
                 5 * BLOWER_MULT + BLOWER_ADD,

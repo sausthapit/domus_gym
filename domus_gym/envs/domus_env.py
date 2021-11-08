@@ -52,21 +52,6 @@ HVAC_ENERGY = np.zeros((len(HvacUt)))
 HVAC_ENERGY[
     [HvacUt.blw_power, HvacUt.cmp_power, HvacUt.fan_power, HvacUt.hv_heater]
 ] = 1
-CABIN_ENERGY = np.zeros((len(DV1Ut)))
-CABIN_ENERGY[
-    [
-        DV1Ut.radiant_panel_1,
-        DV1Ut.radiant_panel_2,
-        DV1Ut.radiant_panel_3,
-        DV1Ut.radiant_panel_4,
-    ]
-] = RAD_POWER
-# note that seat heating is inverted
-CABIN_ENERGY[[DV1Ut.seat_off, DV1Ut.seat_ventilate, DV1Ut.window_heating]] = [
-    -SEAT_POWER,
-    -SEAT_POWER,
-    WINDOW_POWER,
-]
 
 ENERGY_MIN = BLOWER_MIN
 ENERGY_MAX = (
@@ -116,6 +101,21 @@ class DomusEnv(gym.Env):
     )
 
     STATE_COLUMNS = SimpleHvac.UT_COLUMNS + [x.name for x in StateExtra]
+    CABIN_ENERGY = np.zeros((len(DV1Ut)))
+    CABIN_ENERGY[
+        [
+            DV1Ut.radiant_panel_1,
+            DV1Ut.radiant_panel_2,
+            DV1Ut.radiant_panel_3,
+            DV1Ut.radiant_panel_4,
+        ]
+    ] = RAD_POWER
+    # note that seat heating is inverted
+    CABIN_ENERGY[[DV1Ut.seat_off, DV1Ut.seat_ventilate, DV1Ut.window_heating]] = [
+        -SEAT_POWER,
+        -SEAT_POWER,
+        WINDOW_POWER,
+    ]
 
     def __init__(
         self,
@@ -401,10 +401,13 @@ class DomusEnv(gym.Env):
 
     def _energy(self, b_u, h_u):
         """find total power in watts of current cabin state and hvac controls"""
-        energy = np.dot(b_u, CABIN_ENERGY)
+        energy = np.dot(b_u, self.CABIN_ENERGY)
         energy += np.dot(h_u, HVAC_ENERGY) + SEAT_POWER
 
         return energy
+
+    def _ws_and_rh(self, b_x):
+        return b_x[DV1Xt.ws], b_x[DV1Xt.rhc]
 
     def _safety(self, b_x, cab_t):
         """safety is defined based on window fogging. This is estimated from
@@ -413,8 +416,7 @@ class DomusEnv(gym.Env):
 
         """
         cabin_temperature = cab_t
-        cabin_humidity = b_x[DV1Xt.rhc]
-        windshield_temperature = b_x[DV1Xt.ws]
+        windshield_temperature, cabin_humidity = self._ws_and_rh(b_x)
         # use simple dewpoint calculation given on wikipedia
         # https://en.wikipedia.org/wiki/Dew_point#Simple_approximation
         dewpoint_temperature = cabin_temperature - (1 - cabin_humidity) * 20
@@ -522,6 +524,52 @@ class DomusEnv(gym.Env):
         self.c_u[self.StateExtra.car_speed] = self.car_speed
         self.c_u[self.StateExtra.pre_clo] = self.pre_clo
 
+    def _make_cabin_state(self):
+        return kw_to_array(
+            DV1_XT_COLUMNS,
+            t_drvr1=self.cabin_t,
+            t_drvr2=self.cabin_t,
+            t_drvr3=self.cabin_t,
+            t_psgr1=self.cabin_t,
+            t_psgr2=self.cabin_t,
+            t_psgr3=self.cabin_t,
+            t_psgr21=self.cabin_t,
+            t_psgr22=self.cabin_t,
+            t_psgr23=self.cabin_t,
+            t_psgr31=self.cabin_t,
+            t_psgr32=self.cabin_t,
+            t_psgr33=self.cabin_t,
+            v_drvr1=self.cabin_v,
+            v_drvr2=self.cabin_v,
+            v_drvr3=self.cabin_v,
+            v_psgr1=self.cabin_v,
+            v_psgr2=self.cabin_v,
+            v_psgr3=self.cabin_v,
+            v_psgr21=self.cabin_v,
+            v_psgr22=self.cabin_v,
+            v_psgr23=self.cabin_v,
+            v_psgr31=self.cabin_v,
+            v_psgr32=self.cabin_v,
+            v_psgr33=self.cabin_v,
+            m_drvr1=self.cabin_t,
+            m_drvr2=self.cabin_t,
+            m_drvr3=self.cabin_t,
+            m_psgr1=self.cabin_t,
+            m_psgr2=self.cabin_t,
+            m_psgr3=self.cabin_t,
+            m_psgr21=self.cabin_t,
+            m_psgr22=self.cabin_t,
+            m_psgr23=self.cabin_t,
+            m_psgr31=self.cabin_t,
+            m_psgr32=self.cabin_t,
+            m_psgr33=self.cabin_t,
+            rhc=self.cabin_rh,
+            ws=self.cabin_t,
+        )
+
+    def _make_cabin_sim(self):
+        self.dv1_sim = make_dv1_sim(self.dv1_scaler_and_model, self.b_x)
+
     def reset(self) -> GymObs:
 
         self.episode_clock = 0
@@ -570,47 +618,7 @@ class DomusEnv(gym.Env):
         # reset last_cab_t
         self.last_cab_t = None
 
-        self.b_x = kw_to_array(
-            DV1_XT_COLUMNS,
-            t_drvr1=self.cabin_t,
-            t_drvr2=self.cabin_t,
-            t_drvr3=self.cabin_t,
-            t_psgr1=self.cabin_t,
-            t_psgr2=self.cabin_t,
-            t_psgr3=self.cabin_t,
-            t_psgr21=self.cabin_t,
-            t_psgr22=self.cabin_t,
-            t_psgr23=self.cabin_t,
-            t_psgr31=self.cabin_t,
-            t_psgr32=self.cabin_t,
-            t_psgr33=self.cabin_t,
-            v_drvr1=self.cabin_v,
-            v_drvr2=self.cabin_v,
-            v_drvr3=self.cabin_v,
-            v_psgr1=self.cabin_v,
-            v_psgr2=self.cabin_v,
-            v_psgr3=self.cabin_v,
-            v_psgr21=self.cabin_v,
-            v_psgr22=self.cabin_v,
-            v_psgr23=self.cabin_v,
-            v_psgr31=self.cabin_v,
-            v_psgr32=self.cabin_v,
-            v_psgr33=self.cabin_v,
-            m_drvr1=self.cabin_t,
-            m_drvr2=self.cabin_t,
-            m_drvr3=self.cabin_t,
-            m_psgr1=self.cabin_t,
-            m_psgr2=self.cabin_t,
-            m_psgr3=self.cabin_t,
-            m_psgr21=self.cabin_t,
-            m_psgr22=self.cabin_t,
-            m_psgr23=self.cabin_t,
-            m_psgr31=self.cabin_t,
-            m_psgr32=self.cabin_t,
-            m_psgr33=self.cabin_t,
-            rhc=self.cabin_rh,
-            ws=self.cabin_t,
-        )
+        self.b_x = self._make_cabin_state()
 
         self.h_x = kw_to_array(
             HVAC_XT_COLUMNS,
@@ -620,7 +628,7 @@ class DomusEnv(gym.Env):
         )
 
         # create a new simulation for both dv1 and hvac
-        self.dv1_sim = make_dv1_sim(self.dv1_scaler_and_model, self.b_x)
+        self._make_cabin_sim()
         self.hvac_sim = make_hvac_sim(self.hvac_scaler_and_model, self.h_x)
 
         # convert state to control input
