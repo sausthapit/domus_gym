@@ -71,3 +71,14 @@ def test_consumption():
     assert consumption.max_range(speed, mass, comfortPower) == approx(
         100.30194763010108
     )
+
+
+def test_wltp_consumption():
+    comfortPower = 3000
+    speed = 80
+    mass = (
+        1355 + 2 * 75
+    )  # two passengers without additional components (empty fuel tank)
+
+    # wltp gives greater range for this example
+    assert consumption.wltp_max_range(speed, mass, comfortPower) > 100.4

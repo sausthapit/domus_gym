@@ -20,8 +20,8 @@ import pkg_resources
 import scipy.interpolate as sint
 
 
-def _load_sc():
-    filename = pkg_resources.resource_filename(__name__, "consumption.pickle")
+def _load_consumption_table(fn="consumption.pickle"):
+    filename = pkg_resources.resource_filename(__name__, fn)
     with open(filename, "rb") as f:
         data = pickle.load(f)
     cons = data["consumption_kwh_100km"]
@@ -30,7 +30,8 @@ def _load_sc():
     return sint.interp2d(speeds, masses, cons)
 
 
-sc = _load_sc()
+sc = _load_consumption_table()
+wltp = _load_consumption_table(fn="consumption_wltp.pickle")
 
 
 def spec_consumption_delta(speed, mass, deltaMass):
@@ -55,4 +56,13 @@ def power_delta(speed, mass, deltaMass):  # watts
 
 def max_range(speed, mass, comfortPower):  # maximum range km, comfortPower in W
     p = comfortPower + power(speed, mass)  # W
+    return speed * 24.0 * 1000.0 / p
+
+
+def wltp_power(speed, mass):
+    return wltp(speed, mass)[0] * speed * 10.0
+
+
+def wltp_max_range(speed, mass, comfortPower):
+    p = comfortPower + wltp_power(speed, mass)
     return speed * 24.0 * 1000.0 / p
