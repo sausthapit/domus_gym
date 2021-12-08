@@ -211,7 +211,7 @@ class DomusEnv(gym.Env):
             cabin_humidity=0,
             cabin_temperature=KELVIN - 20,
             setpoint=KELVIN + 15,
-            vent_temperature=KELVIN + 0,
+            vent_temperature=KELVIN - 20,
             window_temperature=KELVIN - 20,
             psgr1=0,
             psgr2=0,
