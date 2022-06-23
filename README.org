@@ -7,20 +7,25 @@ Make sure you have miniconda or anaconda installed in the usual way - https://do
 
 Install pytorch with GPU or CPU support - https://pytorch.org/get-started/locally/
 
-Manually install scikit-learn
+To get the right version of scikit-learn we need ~python 3.9~
 #+BEGIN_SRC sh
+conda create -n domusgym python==3.9
 conda install scikit-learn==0.23.2
 #+END_SRC
 
+Note that it may also be necessary to install ~gfortran~ as this is needed to install ~scipy~
+#+BEGIN_SRC sh
+sudo apt install gfortran
+#+END_SRC
 
-Install domus_mlsim and domus_gym
+Install =domus_mlsim= and =domus_gym=
 #+BEGIN_SRC sh
   git clone --recurse-submodules https://github.com/jbrusey/domus_gym.git
   (cd domus_gym/domus_mlsim && pip install -e .)
   (cd domus_gym && pip install -e .)
 #+END_SRC
 
-Make sure you have an adequate build environment. For Linux this means installing =build-essential= along with some other things required by rl-zoo.
+Make sure you have an adequate build environment. For Linux this means installing =build-essential= along with some other things required by ~rl-zoo~.
 #+BEGIN_SRC sh
 sudo apt install build-essential cmake swig ffmpeg zlib1g-dev
 #+END_SRC
