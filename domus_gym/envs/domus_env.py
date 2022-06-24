@@ -248,19 +248,19 @@ class DomusEnv(gym.Env):
         )
         self.action_grid = [
             # blower_level 5, 10, or 18
-            np.array([5, 10, 18]) * BLOWER_MULT + BLOWER_ADD,
+            np.array([5, 10, 18], dtype=np.float32) * BLOWER_MULT + BLOWER_ADD,
             # compressor_power 0 -> 3000 (0 or 3000)
-            np.linspace(0, 3000, 2),
+            np.linspace(0, 3000, 2, dtype=np.float32),
             # hv_heater 0 -> 6000 (0 or 3000 or 6000)
-            np.linspace(0, 6000, 3),
+            np.linspace(0, 6000, 3, dtype=np.float32),
             # fan_power 0 -> 400
-            np.linspace(0, 400, 3),
+            np.linspace(0, 400, 3, dtype=np.float32),
             # recirc
-            np.linspace(0, 1, 3),
+            np.linspace(0, 1, 3, dtype=np.float32),
             # window_heating 0 or 1
-            np.linspace(0, 1, 2),
+            np.linspace(0, 1, 2, dtype=np.float32),
             # dist_defrost
-            np.linspace(0, 1, 2),
+            np.linspace(0, 1, 2, dtype=np.float32),
         ]
         assert len(self.action_grid) == len(SimpleHvac.Xt)
         self.action_space = spaces.MultiDiscrete([len(x) for x in self.action_grid])
@@ -271,9 +271,9 @@ class DomusEnv(gym.Env):
         _, _, ldamdl, scale = load_hcm_model()
         self.hcm_model = (ldamdl, scale)
         # set up work areas
-        self.h_u = np.zeros((len(HvacUt)))
-        self.b_u = np.zeros((len(DV1Ut)))
-        self.c_u = np.zeros((len(SimpleHvac.Ut) + len(self.StateExtra)))
+        self.h_u = np.zeros((len(HvacUt)), dtype=np.float32)
+        self.b_u = np.zeros((len(DV1Ut)), dtype=np.float32)
+        self.c_u = np.zeros((len(SimpleHvac.Ut) + len(self.StateExtra)), np.float32)
         self.c_u[SimpleHvac.Ut.setpoint] = self.setpoint
         self.seed()
 
@@ -302,7 +302,9 @@ class DomusEnv(gym.Env):
         assert len(action) == len(
             self.action_grid
         ), f"wrong number of elements in action vector {action}"
-        c_x = np.array([ag[i] for ag, i in zip(self.action_grid, action)])
+        c_x = np.array(
+            [ag[i] for ag, i in zip(self.action_grid, action)], dtype=np.float32
+        )
 
         return c_x
 

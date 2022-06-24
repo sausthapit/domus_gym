@@ -1,3 +1,6 @@
+import numpy as np
+
+from numpy.testing import assert_array_almost_equal_nulp
 from domus_gym.envs import DomusDv0ContEnv
 from domus_mlsim import (
     KELVIN,
@@ -43,7 +46,7 @@ def test_domus_dv0_args():
 
 
 def test_domus_dv0_like_base():
-    episode_len = 10
+    episode_len = 100
     scenarios = load_scenarios()
     sc30 = scenarios.loc[30]
     cabin, hvac, ctrl = run_dv0_sim(
@@ -61,6 +64,7 @@ def test_domus_dv0_like_base():
         solar2=sc30.solar2,
         car_speed=sc30.car_speed,
     )
+    assert ctrl.dtype == np.float32
 
     env = DomusDv0ContEnv(use_scenario=30, fixed_episode_length=episode_len)
     controller = SimpleHvac()
@@ -73,7 +77,8 @@ def test_domus_dv0_like_base():
 
         act = env.act_tr.transform(a)
 
-        assert (ctrl[i] == a).all()
+        assert_array_almost_equal_nulp(ctrl[i], a, nulp=100)
+
         i += 1
 
         assert env.action_space.contains(act)

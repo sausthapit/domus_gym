@@ -24,7 +24,8 @@ def test_full_env():
         s, rew, done, info = env.step(a)
 
         if not done:
-            print(s)
+            #            print(s)
+            assert s.dtype == np.float32
             assert env.observation_space.contains(s)
 
 
