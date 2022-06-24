@@ -13,6 +13,7 @@ def test_full_env():
     assert a is not None
 
     s = env.reset()
+    assert s.dtype == np.float32
     done = False
     while not done:
         # transform full env state to ctrl state

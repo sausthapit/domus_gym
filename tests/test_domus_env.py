@@ -35,6 +35,7 @@ def test_domus_env():
 
     s1, rew, done, info = env.step(a)
     assert s1 is not None
+    assert s1.dtype == np.float32
     assert env.observation_space.contains(s1)
     assert isinstance(done, bool), f"done is of type {type(done)}"
     # check that all keywords are included in info

@@ -79,10 +79,12 @@ class DomusFullEnv(DomusFullActEnv):
         """
         super(DomusFullEnv, self).__init__(**kwargs)
         obs_min = np.array(
-            [KELVIN - 10] * 12 + [KELVIN - 10] * 12 + [0] * 12 + [KELVIN - 20, 0]
+            [KELVIN - 10] * 12 + [KELVIN - 10] * 12 + [0] * 12 + [KELVIN - 20, 0],
+            dtype=np.float32,
         )
         obs_max = np.array(
-            [KELVIN + 60] * 12 + [KELVIN + 60] * 12 + [10] * 12 + [KELVIN + 60, 0]
+            [KELVIN + 60] * 12 + [KELVIN + 60] * 12 + [10] * 12 + [KELVIN + 60, 0],
+            dtype=np.float32,
         )
         self.observation_space = spaces.Box(
             high=obs_max, low=obs_min, shape=obs_min.shape, dtype=np.float32
@@ -90,7 +92,7 @@ class DomusFullEnv(DomusFullActEnv):
 
     def _convert_state(self):
         """given the current state, create a vector that can be used as input to the controller"""
-        state = np.zeros((len(self.State)))
+        state = np.zeros((len(self.State)), dtype=np.float32)
         state[
             [
                 self.State.m_drvr1,

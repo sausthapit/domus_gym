@@ -139,7 +139,8 @@ class DomusFullActEnv(DomusContEnv):
             + [
                 5 * BLOWER_MULT + BLOWER_ADD,
             ]
-            + [0] * 5
+            + [0] * 5,
+            dtype=np.float32,
         )
         act_max = np.array(
             [
@@ -155,7 +156,8 @@ class DomusFullActEnv(DomusContEnv):
                 1,
                 1,
                 6000,
-            ]
+            ],
+            dtype=np.float32,
         )
         self.act_tr = MinMaxTransform(act_min, act_max)
         self.action_space = spaces.Box(
@@ -333,8 +335,8 @@ class DomusFullActEnv(DomusContEnv):
         # simplification to get dv1 working
         self.b_u[DV1Ut.vent_flow_rate] = np.interp(
             int_action[self.InternalAction.blw_power],
-            np.array([5, 10, 18]) * 17 + 94,
-            np.array([1, 3, 5]),
+            np.array([5, 10, 18], dtype=np.float32) * 17 + 94,
+            np.array([1, 3, 5], dtype=np.float32),
         )
 
         # TODO update only when it changes

@@ -33,7 +33,8 @@ class DomusContEnv(DomusEnv):
                 0,
                 0,
                 0,
-            ]
+            ],
+            dtype=np.float32,
         )
         act_max = np.array(
             [
@@ -44,7 +45,8 @@ class DomusContEnv(DomusEnv):
                 1,
                 1,
                 1,
-            ]
+            ],
+            dtype=np.float32,
         )
         self.act_tr = MinMaxTransform(act_min, act_max)
         self.action_space = spaces.Box(
