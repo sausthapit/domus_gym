@@ -106,23 +106,6 @@ class DomusDv0ContEnv(DomusContEnv):
         v = v - np.array([KELVIN, KELVIN, 0, KELVIN, KELVIN, 0, KELVIN, KELVIN, 0])
         return v.reshape((3, 3))
 
-    def _comfort(self, b_x, h_u):
-        # temporarily just assess driver and front passenger comfort
-
-        # assess driver comfort
-        hcm = [
-            hcm_reduced(
-                model=self.hcm_model,
-                pre_clo=self.pre_clo,
-                pre_out=h_u[HvacUt.ambient] - KELVIN,
-                body_state=self._body_state(b_x, i),
-                rh=b_x[DV0Xt.rhc] * 100,
-                sound=calc_sound_level(h_u[HvacUt.speed], h_u[HvacUt.blw_power])[0],
-            )
-            for i in self.configured_passengers
-        ]
-        return np.mean(hcm)
-
     def _ws_and_rh(self, b_x):
         return b_x[DV0Xt.ws], b_x[DV0Xt.rhc]
 

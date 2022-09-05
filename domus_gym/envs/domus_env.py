@@ -15,8 +15,8 @@ from domus_mlsim import (
     DV1Xt,
     HvacUt,
     SimpleHvac,
+    eqt,
     estimate_cabin_temperature_dv1,
-    hcm_reduced,
     kw_to_array,
     load_dv1,
     load_hcm_model,
@@ -268,8 +268,6 @@ class DomusEnv(gym.Env):
         self.dv1_scaler_and_model = load_dv1()
         self.hvac_scaler_and_model = load_hvac()
         self.setpoint = 22 + KELVIN
-        _, _, ldamdl, scale = load_hcm_model()
-        self.hcm_model = (ldamdl, scale)
         # set up work areas
         self.h_u = np.zeros((len(HvacUt)), dtype=np.float32)
         self.b_u = np.zeros((len(DV1Ut)), dtype=np.float32)
@@ -380,18 +378,20 @@ class DomusEnv(gym.Env):
         else:
             return GAMMA * self._phi(cab_t) - self._phi(last_cab_t)
 
+    def _passenger_comfort(self, body_state, pre_clo, pre_out):
+        """find comfort using iec14505"""
+        eqt_t, eqt_out = eqt(body_state=body_state, pre_clo=pre_clo, pre_out=pre_out)
+        return eqt_out[-1]
+
     def _comfort(self, b_x, h_u):
-        # temporarily just assess driver and front passenger comfort
 
         # assess driver comfort
+        pre_out = h_u[HvacUt.ambient] - KELVIN
         hcm = [
-            hcm_reduced(
-                model=self.hcm_model,
-                pre_clo=self.pre_clo,
-                pre_out=h_u[HvacUt.ambient] - KELVIN,
+            self._passenger_comfort(
                 body_state=self._body_state(b_x, i),
-                rh=b_x[DV1Xt.rhc] * 100,
-                sound=calc_sound_level(h_u[HvacUt.speed], h_u[HvacUt.blw_power])[0],
+                pre_clo=self.pre_clo,
+                pre_out=pre_out,
             )
             for i in self.configured_passengers
         ]

@@ -117,13 +117,13 @@ def get_episode_len(env):
 
 
 # long running test commented out for the moment
-def test_seed():
-    env = DomusEnv()
-    env.seed(1)
-    first_ep_len = get_episode_len(env)
-    assert env.episode_length <= first_ep_len <= env.episode_length + 1
-    env.seed(1)
-    assert first_ep_len == get_episode_len(env)
+# def test_seed():
+#     env = DomusEnv()
+#     env.seed(1)
+#     first_ep_len = get_episode_len(env)
+#     assert env.episode_length <= first_ep_len <= env.episode_length + 1
+#     env.seed(1)
+#     assert first_ep_len == get_episode_len(env)
 
 
 def test_fixed_episode_len():
@@ -183,15 +183,7 @@ def test_hcm():
         ]
     )
 
-    assert (
-        hcm_reduced(
-            model=env.hcm_model,
-            pre_out=22,
-            body_state=body_state,
-            rh=50,
-        )
-        == 1
-    )
+    assert env._passenger_comfort(body_state=body_state, pre_out=22, pre_clo=0.7) == 1
 
 
 def test_comfort():
