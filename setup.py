@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="domus_gym",
-    version="0.1",
+    version="0.2",
     packages=find_packages(
         where=".",
         include=["domus_gym"],
@@ -11,7 +11,7 @@ setup(
     install_requires=[
         "gym",
         "domus_mlsim",
-        "scipy <= 1.5.2",
+        "scipy",
         "stable-baselines3",
     ],  # And any other dependencies domus-gym needs
 )
