@@ -1,7 +1,7 @@
 from enum import IntEnum
 from typing import Optional
 
-import gym
+import gymnasium as gym
 import numpy as np
 from gym import spaces  # error, spaces, utils
 from gym.utils import seeding

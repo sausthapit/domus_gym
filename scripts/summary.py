@@ -1,6 +1,6 @@
 from pathlib import Path
 
-import gym
+import gymnasium as gym
 import numpy as np
 import pandas as pd
 from stable_baselines3 import PPO

@@ -2,7 +2,7 @@ import argparse
 import warnings
 from pathlib import Path
 
-import gym
+import gymnasium as gym
 from skopt import dump, gp_minimize, load
 from skopt.callbacks import CheckpointSaver
 from skopt.space import Integer
