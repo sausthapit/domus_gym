@@ -3,6 +3,7 @@
 """
 
 import numpy as np
+import gymnasium as gym
 from gym import spaces  # error, spaces, utils
 
 from .domus_env import BLOWER_ADD, BLOWER_MULT, DomusEnv

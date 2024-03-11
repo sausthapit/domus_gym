@@ -5,6 +5,7 @@
 from enum import Enum, IntEnum, auto
 
 import numpy as np
+import gymnasium as gym
 from gym import spaces  # error, spaces, utils
 
 from domus_mlsim import DV1Ut, HvacUt, HvacXt
@@ -327,7 +328,11 @@ class DomusFullActEnv(DomusContEnv):
             ]
         ]
 
-        self.b_u[[DV1Ut.HvacMain,]] = self.h_x[
+        self.b_u[
+            [
+                DV1Ut.HvacMain,
+            ]
+        ] = self.h_x[
             [
                 HvacXt.vent_T,
             ]

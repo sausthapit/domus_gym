@@ -1,3 +1,4 @@
+import gymnasium as gym
 from gym.envs.registration import register
 
 register(
