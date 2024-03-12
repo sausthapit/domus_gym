@@ -582,7 +582,7 @@ class DomusEnv(gym.Env):
 
         if self.use_random_scenario or self.use_scenario is not None:
             if self.use_random_scenario:
-                i = self.np_random.randint(self.scenarios.shape[0])
+                i = self.np_random.choice(self.scenarios.shape[0])
             else:
                 i = self.use_scenario
             row = self.scenarios.loc[i]
