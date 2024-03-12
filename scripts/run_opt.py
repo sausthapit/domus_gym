@@ -101,7 +101,7 @@ class Loss:
             env.set_attr("use_scenario", i)
             env.set_attr("fixed_episode_length", self.sc.time[i] * 60)
 
-            obs = env.reset()
+            obs, _ = env.reset()
 
             done = False
             count = 0

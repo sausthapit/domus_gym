@@ -1,27 +1,26 @@
 import gymnasium as gym
-from gym.envs.registration import register
 
-register(
+gym.register(
     id="Domus-v0",
     entry_point="domus_gym.envs:DomusEnv",
 )
 
-register(
+gym.register(
     id="DomusCont-v0",
     entry_point="domus_gym.envs:DomusContEnv",
 )
 
-register(
+gym.register(
     id="DomusFull-v0",
     entry_point="domus_gym.envs:DomusFullEnv",
 )
 
-register(
+gym.register(
     id="DomusFullAct-v0",
     entry_point="domus_gym.envs:DomusFullActEnv",
 )
 
-register(
+gym.register(
     id="DomusDv0Cont-v0",
     entry_point="domus_gym.envs:DomusDv0ContEnv",
 )

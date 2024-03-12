@@ -29,15 +29,15 @@ def test_domus_env():
     a = env.action_space.sample()
     assert a is not None
 
-    s = env.reset()
+    s, _ = env.reset()
     assert s is not None
     assert env.observation_space.contains(s)
 
-    s1, rew, done, info = env.step(a)
+    s1, rew, terminated, truncated, info = env.step(a)
     assert s1 is not None
     assert s1.dtype == np.float32
     assert env.observation_space.contains(s1)
-    assert isinstance(done, bool), f"done is of type {type(done)}"
+    assert isinstance(truncated, bool), f"truncated is of type {type(truncated)}"
     # check that all keywords are included in info
     assert "comfort" in info
     assert "energy" in info
@@ -45,7 +45,7 @@ def test_domus_env():
     assert isinstance(rew, float)
 
     ctrl = SimpleHvac()
-    s = env.reset()
+    s, _ = env.reset()
     for _ in range(100):
         a = ctrl.step(env.hvac_action(s))
 
@@ -54,11 +54,11 @@ def test_domus_env():
         act = [find_nearest_idx(ag, value) for ag, value in zip(env.action_grid, a)]
 
         assert env.action_space.contains(act)
-        s, rew, done, info = env.step(act)
-        if not done:
+        s, rew, terminated, truncated, info = env.step(act)
+        if not (terminated or truncated):
             assert env.observation_space.contains(s)
         else:
-            s = env.reset()
+            s, _ = env.reset()
     #       print(f"s={s}")
     assert -1 <= s[0] <= 1
     # temperature should have decreased
@@ -67,12 +67,12 @@ def test_domus_env():
 
 def test_domus_env_init():
     env = DomusEnv(use_random_scenario=True)
-    env.seed(1)
-    obs = env.reset()
+
+    obs, _ = env.reset(seed=1)
     same_count = 0
     N = 10
     for _ in range(N):
-        test_obs = env.reset()
+        test_obs, _ = env.reset()
         if (test_obs == obs).all():
             same_count += 1
     assert same_count < N
@@ -80,7 +80,7 @@ def test_domus_env_init():
 
 def test_domus_env_specific_scenario():
     env = DomusEnv(use_scenario=1)
-    obs = env.reset()
+    obs, _ = env.reset()
     state = env.obs_tr.inverse_transform(obs)
     assert state == approx(
         kw_to_array(
@@ -104,22 +104,23 @@ def test_domus_env_specific_scenario():
 
 
 def get_episode_len(env):
-    s = env.reset()
-    done = False
+    s, _ = env.reset()
     ep_len = 0
-    while not done:
+    while True:
         a = np.array([BLOWER_MIN, 0, 0, 0, 0, 0, 0])
         act = [find_nearest_idx(ag, value) for ag, value in zip(env.action_grid, a)]
         assert env.action_space.contains(act)
-        s, rew, done, info = env.step(act)
+        s, rew, terminated, truncated, info = env.step(act)
         ep_len += 1
+        if terminated or truncated:
+            break
     return ep_len
 
 
 # long running test commented out for the moment
 # def test_seed():
 #     env = DomusEnv()
-#     env.seed(1)
+#     env.seed(1)   # for v26, this would need to be reworked to use env.reset(seed=1)
 #     first_ep_len = get_episode_len(env)
 #     assert env.episode_length <= first_ep_len <= env.episode_length + 1
 #     env.seed(1)
@@ -128,7 +129,7 @@ def get_episode_len(env):
 
 def test_fixed_episode_len():
     env = DomusEnv(fixed_episode_length=10)
-    _ = env.reset()
+    _, _ = env.reset()
     assert env.episode_length == 10
     assert 10 == get_episode_len(env)
 
@@ -189,7 +190,7 @@ def test_hcm():
 def test_comfort():
     env = DomusEnv()
 
-    _ = env.reset()
+    _, _ = env.reset()
     h_u = partial_kw_to_array(
         HVAC_UT_COLUMNS,
         ambient=KELVIN + 37,
@@ -339,7 +340,7 @@ def test_energy():
 def test_safety():
     env = DomusEnv()
 
-    _ = env.reset()
+    _, _ = env.reset()
     cab_t = estimate_cabin_temperature_dv1(env.b_x)
     assert env._safety(env.b_x, cab_t) == 1
 
@@ -364,7 +365,7 @@ def test_safety():
 def test_reward():
     env = DomusEnv()
 
-    _ = env.reset()
+    _, _ = env.reset()
     # cabin active elements turned off
     b_u = partial_kw_to_array(
         DV1_UT_COLUMNS,
@@ -445,21 +446,21 @@ def test_reward():
 
 def test_last_cab_t():
     env = DomusEnv()
-    env.reset()
+    _, _ = env.reset()
     assert env.last_cab_t is None
 
     env = DomusEnv(use_random_scenario=True)
-    env.reset()
+    _, _ = env.reset()
     assert env.last_cab_t is None
 
     env = DomusEnv(use_scenario=1)
-    env.reset()
+    _, _ = env.reset()
     assert env.last_cab_t is None
 
 
 def test_configured_passengers():
     env = DomusEnv(use_scenario=1)
-    s = env.reset()
+    s, _ = env.reset()
     assert env.configured_passengers == [0]
     assert sum(s[env.StateExtra.psgr1 : env.StateExtra.psgr3]) == -2
 
@@ -467,7 +468,7 @@ def test_configured_passengers():
 def test_state_has_ambient():
     env = DomusEnv(use_scenario=0)
     env2 = DomusEnv(use_scenario=1)
-    assert env.reset() != approx(env2.reset())
+    assert env.reset()[0] != approx(env2.reset()[0])
 
     assert env.c_u[env.StateExtra.ambient_t] == approx(263.15)
     assert env.c_u[env.StateExtra.ambient_rh] == approx(0.6)

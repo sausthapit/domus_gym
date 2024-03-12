@@ -3,9 +3,9 @@ from typing import Optional
 
 import gymnasium as gym
 import numpy as np
-from gym import spaces  # error, spaces, utils
-from gym.utils import seeding
-from stable_baselines3.common.type_aliases import GymObs, GymStepReturn
+from gymnasium import spaces
+from gymnasium.core import ObsType, ActType
+from typing import SupportsFloat, Tuple, Any
 
 from domus_mlsim import (
     DV1_XT_COLUMNS,
@@ -273,13 +273,9 @@ class DomusEnv(gym.Env):
         self.b_u = np.zeros((len(DV1Ut)), dtype=np.float32)
         self.c_u = np.zeros((len(SimpleHvac.Ut) + len(self.StateExtra)), np.float32)
         self.c_u[SimpleHvac.Ut.setpoint] = self.setpoint
-        self.seed()
+        # self.seed()  removed with gymnasium v26
 
-    def seed(self, seed=None):
-        self.np_random, seed = seeding.np_random(seed)
-        return [seed]
-
-    def _convert_state(self):
+    def _convert_state(self) -> ObsType:
         """given the current state, create a vector that can be used as input to the controller"""
         cab_t = estimate_cabin_temperature_dv1(self.b_x)
         update_control_inputs_dv1(self.c_u, self.b_x, self.h_x, cab_t)
@@ -493,7 +489,9 @@ class DomusEnv(gym.Env):
         update_dv1_inputs(self.b_u, self.h_x, c_x)
         _, self.b_x = self.dv1_sim.step(self.b_u)
 
-    def step(self, action: np.ndarray) -> GymStepReturn:
+    def step(
+        self, action: ActType
+    ) -> Tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
         self.episode_clock += 1
         c_x = self._convert_action(action)
         cab_t = estimate_cabin_temperature_dv1(self.b_x)
@@ -507,7 +505,8 @@ class DomusEnv(gym.Env):
         return (
             self._convert_state(),
             rew,
-            self._isdone(),
+            False,  # Terminated - it never terminates
+            self._isdone(),  # Truncated - old done flag indicates truncated
             {"comfort": c, "energy": e, "safety": s},
         )
 
@@ -572,7 +571,10 @@ class DomusEnv(gym.Env):
     def _make_cabin_sim(self):
         self.dv1_sim = make_dv1_sim(self.dv1_scaler_and_model, self.b_x)
 
-    def reset(self) -> GymObs:
+    def reset(
+        self, *, seed: int | None = None, options: dict[str, Any] | None = None
+    ) -> tuple[ObsType, dict[str, Any]]:
+        super().reset(seed=seed)
 
         self.episode_clock = 0
         if self.fixed_episode_length is not None:
@@ -634,7 +636,7 @@ class DomusEnv(gym.Env):
         self.hvac_sim = make_hvac_sim(self.hvac_scaler_and_model, self.h_x)
 
         # convert state to control input
-        return self._convert_state()
+        return (self._convert_state(), {})
 
     def render(self, mode="human"):
         pass

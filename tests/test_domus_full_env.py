@@ -12,7 +12,7 @@ def test_full_env():
     a = env.action_space.sample()
     assert a is not None
 
-    s = env.reset()
+    s, _ = env.reset()
     assert s.dtype == np.float32
     done = False
     while not done:
@@ -22,7 +22,8 @@ def test_full_env():
         a = np.array([0, 1, 1, 1, 1, 0, 1, 400, 0, 0, 1, 1, 6000])
         a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
-        s, rew, done, info = env.step(a)
+        s, rew, terminated, truncated, info = env.step(a)
+        done = terminated or truncated
 
         if not done:
             #            print(s)
@@ -33,32 +34,32 @@ def test_full_env():
 def test_new_air():
     env = DomusFullEnv(use_scenario=1)
 
-    s = env.reset()
+    s, _ = env.reset()
     # try new air mode 1 =>
     for mode in range(1, len(DomusFullEnv.NewAirMode)):
 
         a = np.array([mode, 1, 1, 1, 1, 0, 1, 400, 0, 0, 1, 1, 6000])
         a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
-        s, rew, done, info = env.step(a)
+        s, rew, terminated, truncated, info = env.step(a)
 
 
 def test_seat():
     env = DomusFullEnv(use_scenario=1)
 
-    s = env.reset()
+    s, _ = env.reset()
     # try new air mode 1 =>
     for mode in range(1, len(DomusFullEnv.Seat)):
 
         a = np.array([0, 1, 1, 1, 1, mode, 1, 400, 0, 0, 1, 1, 6000])
         a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
-        s, rew, done, info = env.step(a)
+        s, rew, terminated, truncated, info = env.step(a)
 
 
 def test_convert_action():
     env = DomusFullEnv(use_random_scenario=True)
-    env.seed(1)
+    _, _ = env.reset(seed=1)
     for _ in range(10):
         _ = env._convert_action(env.action_space.sample())
 
@@ -99,11 +100,11 @@ def test_config_newair():
     env = DomusFullEnv(configuration=config, use_scenario=1)
     s_mode = []
     for mode in range(len(DomusFullEnv.NewAirMode)):
-        s = env.reset()
+        s, _ = env.reset()
         a = np.array([mode, 1, 1, 1, 1, 0, 1, 400, 0, 0, 1, 1, 6000])
         a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
-        s, rew, done, info = env.step(a)
+        s, rew, terminated, truncated, info = env.step(a)
         s_mode.append(s)
 
     for mode in range(1, len(DomusFullEnv.NewAirMode)):
@@ -116,13 +117,13 @@ def test_config_radiant():
     env = DomusFullEnv(configuration=config, use_scenario=1)
     s_mode = []
     for panel in range(5):
-        s = env.reset()
+        s, _ = env.reset()
         a = np.array([0, 0, 0, 0, 0, 0, 1, 400, 0, 0, 1, 1, 6000])
         if panel > 0:
             a[panel] = 1
         a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
-        s, rew, done, info = env.step(a)
+        s, rew, terminated, truncated, info = env.step(a)
         s_mode.append(s)
 
     for panel in range(1, 5):
@@ -135,12 +136,12 @@ def test_config_seat():
     env = DomusFullEnv(configuration=config, use_scenario=1)
     s_mode = []
     for seat in range(len(env.Seat)):
-        s = env.reset()
+        s, _ = env.reset()
         a = np.array([1, 1, 1, 1, 1, 0, 1, 400, 0, 0, 1, 1, 6000])
         a[env.Action.seat] = seat
         a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
-        s, rew, done, info = env.step(a)
+        s, rew, terminated, truncated, info = env.step(a)
         s_mode.append(s)
 
     for seat in range(1, len(env.Seat)):
@@ -153,12 +154,12 @@ def test_config_windowheating():
     env = DomusFullEnv(configuration=config, use_scenario=1)
     s_mode = []
     for windowheating in range(2):
-        s = env.reset()
+        s, _ = env.reset()
         a = np.array([1, 1, 1, 1, 1, 0, 1, 400, 0, 0, 1, 1, 6000])
         a[env.Action.window_heating] = windowheating
         a = env.act_tr.transform(a)
         assert env.action_space.contains(a)
-        s, rew, done, info = env.step(a)
+        s, rew, terminated, truncated, info = env.step(a)
         s_mode.append(s)
 
     for windowheating in range(1, 2):

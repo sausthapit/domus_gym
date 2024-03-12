@@ -9,9 +9,10 @@ setup(
         exclude=["domus_mlsim"],
     ),
     install_requires=[
-        "gym",
+        "gymnasium",
         "domus_mlsim",
         "scipy",
         "stable-baselines3",
+        "setuptools",
     ],  # And any other dependencies domus-gym needs
 )

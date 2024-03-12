@@ -12,18 +12,18 @@ def test_domus_cont_env():
     assert a is not None
 
     ctrl = SimpleHvac()
-    s = env.reset()
+    s, _ = env.reset()
     for _ in range(100):
         a = ctrl.step(env.hvac_action(s))
 
         act = env.act_tr.transform(a)
 
         assert env.action_space.contains(act)
-        s, rew, done, kw = env.step(act)
-        if not done:
+        s, rew, terminated, truncated, kw = env.step(act)
+        if not (terminated or truncated):
             assert env.observation_space.contains(s)
         else:
-            s = env.reset()
+            s, _ = env.reset()
 
 
 def test_domus_cont_args():

@@ -6,7 +6,7 @@ from enum import IntEnum
 
 import numpy as np
 import gymnasium as gym
-from gym import spaces  # error, spaces, utils
+from gymnasium import spaces  # error, spaces, utils
 
 from domus_mlsim import KELVIN, DV1Xt, HvacXt
 

@@ -7,10 +7,15 @@ Make sure you have miniconda or anaconda installed in the usual way - https://do
 
 Install pytorch with GPU or CPU support - https://pytorch.org/get-started/locally/
 
-To get the right version of scikit-learn we need ~python 3.9~
+Create a conda environment or alternatively create an appropriate virtual environment
 #+BEGIN_SRC sh
-conda create -n domusgym python==3.9
+conda create -n domusgym 
 conda activate domusgym
+#+END_SRC
+or
+#+BEGIN_SRC sh
+virtualenv venv
+source venv/bin/activate
 #+END_SRC
 
 Note that it may also be necessary to install ~gfortran~ as this is needed to install ~scipy~
