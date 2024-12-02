@@ -27,7 +27,9 @@ from domus_mlsim import (
     update_control_inputs_dv1,
     update_dv1_inputs,
     update_hvac_inputs,
+    calculate_normalised_pmv
 )
+
 
 from .acoustics import calc_sound_level
 from .minmax import MinMaxTransform
@@ -391,8 +393,20 @@ class DomusEnv(gym.Env):
             )
             for i in self.configured_passengers
         ]
-        return np.mean(hcm)
-
+        #print (self._rh(b_x))
+        pmvs=[
+                calculate_normalised_pmv(
+                    body_state=self._body_state(b_x,i),
+                    rh=self._rh(b_x)*100,
+                    met=1.2, # metabolic rate for this case I am considering 1.2 need to consult with James
+                    pre_clo=self.pre_clo)
+            for i in self.configured_passengers
+        ]
+        w_eqt=0
+        w_pmv=1
+      #  print (pmvs)
+        return (w_eqt*np.mean(hcm)+w_pmv*np.mean(pmvs))
+#        return np.mean(hcm)
     def _normalise_energy(self, energy):
         """normalise energy value to be between 0 and 1"""
         return (energy - ENERGY_MIN) / (ENERGY_MAX - ENERGY_MIN)
@@ -406,7 +420,8 @@ class DomusEnv(gym.Env):
 
     def _ws_and_rh(self, b_x):
         return b_x[DV1Xt.ws], b_x[DV1Xt.rhc]
-
+    def _rh(self,b_x):
+        return b_x[DV1Xt.rhc]
     def _safety(self, b_x, cab_t):
         """safety is defined based on window fogging. This is estimated from
         the windshield temperature and relative humidity. The relative
