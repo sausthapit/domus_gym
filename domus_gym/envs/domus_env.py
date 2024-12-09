@@ -124,6 +124,7 @@ class DomusEnv(gym.Env):
         use_random_scenario: bool = False,
         use_scenario: Optional[int] = None,
         fixed_episode_length: Optional[int] = None,
+        weight_for_eqt_comfort: float=1.0,
     ):
         """Description:
             Simulation of the thermal environment of a Fiat 500e car
@@ -143,7 +144,10 @@ class DomusEnv(gym.Env):
 
             set a fixed episode length in seconds (default is random
             exponential distribution with mean of 23 minutes)
-
+          
+          weight_for_eqt_comfort: float
+            set the weight for Equivalent temperature between 0 and 1.
+            This is addded to include the PMV in the comfort. whatever weight is set for EQT, the weight for PMV is 1-w_eqt.
         Observation:
 
             The environment is not fully observable. The temperature
@@ -208,6 +212,7 @@ class DomusEnv(gym.Env):
         assert use_scenario is None or not use_random_scenario
         self.fixed_episode_length = fixed_episode_length
         self.scenarios = load_scenarios()
+        self.w_eqt=weight_for_eqt_comfort
         obs_min = kw_to_array(
             self.STATE_COLUMNS,
             cabin_humidity=0,
@@ -402,10 +407,9 @@ class DomusEnv(gym.Env):
                     pre_clo=self.pre_clo)
             for i in self.configured_passengers
         ]
-        w_eqt=0
-        w_pmv=1
+        w_eqt=self.w_eqt
       #  print (pmvs)
-        return (w_eqt*np.mean(hcm)+w_pmv*np.mean(pmvs))
+        return (w_eqt*np.mean(hcm)+(1-w_eqt)*np.mean(pmvs))
 #        return np.mean(hcm)
     def _normalise_energy(self, energy):
         """normalise energy value to be between 0 and 1"""
